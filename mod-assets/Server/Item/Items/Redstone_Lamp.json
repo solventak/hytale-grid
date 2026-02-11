@@ -1,0 +1,113 @@
+{
+  "Icon": "Icons/ItemsGenerated/lamp_on_32.png",
+  "IconProperties": {
+    "Scale": 0.58823,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  },
+  "Categories": [
+    "Furniture.Furniture"
+  ],
+  "MaxStack": 100,
+  "Recipe": {
+    "Input": [
+      {
+        "ItemId": "Soil_Dirt"
+      }
+    ],
+    "Output": [
+      {
+        "ItemId": "Redstone_Lamp"
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Id": "Fieldcraft",
+        "Type": "Crafting",
+        "Categories": [
+          "Tools"
+        ]
+      }
+    ]
+  },
+  "PlayerAnimationsId": "Block",
+  "Set": "Example_Block",
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Cube",
+    "Opacity": "Transparent",
+    "Group": "Stone",
+
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "ChangeState",
+            "Changes": {
+              "default": "Off",
+              "Off": "default"
+            }
+          }
+        ]
+      }
+    },
+    "BlockEntity": {
+      "Components": {
+        "PowerConnectable": {},
+        "PowerNetIds": {},
+        "Lamp": {},
+        "VisualState": {}
+      }
+    },
+    "State": {
+      "Definitions": {
+        "On": {
+          "Light": {
+            "Color": "#fff"
+          },
+          "InteractionHint": "server.interactionHints.turnon",
+          "Textures": [
+            {
+              "Sides": "BlockTextures/lamp_on_32.png",
+              "UpDown": "BlockTextures/lamp_on_32.png",
+              "Weight": 5
+            }
+          ]
+        }
+      }
+    },
+    "InteractionHint": "server.interactionHints.turnoff",
+    "Flags": {},
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
+    "BlockParticleSetId": "Stone",
+    "Textures": [
+      {
+        "Sides": "BlockTextures/lamp_off_32.png",
+        "UpDown": "BlockTextures/lamp_off_32.png",
+        "Weight": 5
+      }
+    ],
+    "ParticleColor": "#615d44",
+    "BlockSoundSetId": "Stone"
+  },
+  "ResourceTypes": [
+    { "Id": "Rock" },
+    { "Id": "Rock_Stone" }
+  ],
+  "Tags": {
+    "Type": ["Redstone"],
+    "Family": ["Source"]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Stone"
+}
