@@ -17,8 +17,19 @@ import dev.hytalemodding.wire.getConnections
 import dev.hytalemodding.wire.isWireBlock
 
 /**
- * Process wire shape updates: for each dirty position that is a wire,
- * compute the correct variant + rotation and swap the block type if needed.
+ * Processes wire shape updates for all dirty wire positions.
+ * 
+ * For each wire block marked dirty:
+ * 1. Scans all 6 neighbors for connectable blocks (using PowerConnectable.facesMask)
+ * 2. Looks up the correct wire variant + rotation in WireLookupTable
+ * 3. If the current block variant doesn't match, swaps to the target variant
+ * 4. Preserves powered visual state ("On") if the wire was powered
+ * 
+ * The WireVisualUpdateTracker prevents event systems from re-queuing topology
+ * changes when setBlock internally destroys + recreates the block entity.
+ *
+ * @param queue State queue with wireDirtyPositions to process
+ * @param world The game world
  */
 private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World) {
     val wireDirty = queue.wireDirtyPositions
@@ -82,6 +93,30 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World) 
     }
 }
 
+/**
+ * System that applies visual state changes to blocks after TopologySystem completes.
+ * 
+ * Runs in two phases:
+ * 
+ * ## Phase 1: Wire Shape Updates
+ * - Processes queue.wireDirtyPositions
+ * - Swaps wire blocks to correct variant (straight, corner, T, cross, etc.)
+ * - Preserves powered visual state across variant swaps
+ * 
+ * ## Phase 2: Visual State Updates
+ * - Processes queue.visualDirtyPositions
+ * - Reads VisualState.state for each dirty position
+ * - Calls worldChunk.setBlockInteractionState() to apply the visual change
+ * 
+ * System dependencies:
+ * - Runs AFTER TopologySystem (declared via getDependencies)
+ * - Ensures all logical state is computed before visuals are applied
+ * 
+ * This separation prevents:
+ * - Race conditions between state computation and visual application
+ * - Redundant visual updates (batches changes per tick)
+ * - Topology recalculation during visual-only changes
+ */
 class VisualStateSystem : TickingSystem<ChunkStore>() {
 
     override fun tick(dt: Float, systemIndex: Int, store: Store<ChunkStore>) {

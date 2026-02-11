@@ -15,18 +15,46 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore
 import dev.hytalemodding.ExamplePlugin
 
 /**
- * Tracks positions currently being visually updated by the wire shape system.
- * Prevents PowerBlockAddedSystem / PowerBlockBreakEvent from re-queuing events
- * when setBlock swaps a wire to a different variant (which destroys + recreates the entity).
+ * Thread-safe tracker for wire blocks currently undergoing visual shape updates.
+ * 
+ * Problem:
+ * - VisualStateSystem calls world.setBlock() to swap a wire to a different variant
+ * - setBlock internally destroys the old block entity and creates a new one
+ * - This triggers PowerBlockAddedSystem and PowerBlockBreakEvent
+ * - Without tracking, these events would re-queue topology changes for visual-only swaps
+ * 
+ * Solution:
+ * - Before calling setBlock, VisualStateSystem marks the position as "updating"
+ * - Event systems check isUpdating() and skip re-queuing if true
+ * - After setBlock completes, position is cleared
+ * 
+ * Thread safety:
+ * - Uses ConcurrentHashMap.newKeySet() for lock-free concurrent access
+ * - Multiple systems may check simultaneously during parallel execution
  */
 object WireVisualUpdateTracker {
     private val updatingPositions = java.util.concurrent.ConcurrentHashMap.newKeySet<Vector3i>()
 
+    /** Marks a position as currently undergoing a visual-only update */
     fun markUpdating(pos: Vector3i) { updatingPositions.add(pos) }
+    
+    /** Clears the updating flag for a position */
     fun clearUpdating(pos: Vector3i) { updatingPositions.remove(pos) }
+    
+    /** Checks if a position is currently undergoing a visual-only update */
     fun isUpdating(pos: Vector3i): Boolean = updatingPositions.contains(pos)
 }
 
+/**
+ * Converts block-local coordinates (from BlockStateInfo) to global world coordinates.
+ * 
+ * BlockStateInfo stores a block's position relative to its chunk (0-31 for X/Z).
+ * This function retrieves the chunk's world position and computes the absolute coords.
+ *
+ * @param info BlockStateInfo component from the block entity
+ * @param cmdBuf Command buffer for accessing WorldChunk component
+ * @return Global position (Vector3i), or null if WorldChunk unavailable
+ */
 fun globalPosFromLocal(info: BlockModule.BlockStateInfo, cmdBuf: CommandBuffer<ChunkStore>): Vector3i? {
     val worldChunk = cmdBuf.getComponent(info.chunkRef, WorldChunk.getComponentType()) ?: return null
     val localX = ChunkUtil.xFromBlockInColumn(info.index)
@@ -37,6 +65,27 @@ fun globalPosFromLocal(info: BlockModule.BlockStateInfo, cmdBuf: CommandBuffer<C
     return Vector3i(globalX, localY, globalZ)
 }
 
+/**
+ * ChunkStore RefSystem that handles block placement/addition events.
+ * 
+ * Triggers when:
+ * - A block entity is added to the world (placement, chunk load, visual variant swap)
+ * - The block has PowerConnectable or InputPort components
+ * 
+ * Responsibilities:
+ * 1. **InputPort validation**: If block is an InputPort, scans neighbors for PowerSource/Relay
+ *    - If no valid driver found → destroys the block
+ *    - If driver found → configures inputPort.driverSideFace
+ * 
+ * 2. **Topology event queuing**: Adds a PLACED event to queue.changes
+ *    - TopologySystem will process the event in its next tick
+ * 
+ * 3. **Wire shape marking**: If block is a PowerWire, marks itself + 6 neighbors dirty
+ *    - VisualStateSystem will update wire shapes for all marked positions
+ * 
+ * Skips processing if:
+ * - Position is tracked by WireVisualUpdateTracker (visual-only swap in progress)
+ */
 class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
     override fun onEntityAdded(
         ref: Ref<ChunkStore>,
@@ -109,6 +158,32 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
     )
 }
 
+/**
+ * EntityStore EventSystem that handles block break events.
+ * 
+ * Triggers when:
+ * - A player breaks a block (via BreakBlockEvent on EntityStore)
+ * - The block has PowerConnectable or InputPort components
+ * 
+ * Note: This runs on EntityStore (player entity system), not ChunkStore.
+ * Cross-store access is used to queue events on the ChunkStore resource.
+ * 
+ * Responsibilities:
+ * 1. **Topology event queuing**: Adds a DESTROYED event to queue.changes
+ *    - TopologySystem will process the event in its next tick
+ *    - Networks touching the destroyed block will be invalidated and rebuilt
+ * 
+ * 2. **Wire shape marking**: If block is a PowerWire, marks 6 neighbors dirty
+ *    - VisualStateSystem will update neighbor wire shapes to remove connections
+ * 
+ * Skips processing if:
+ * - Position is tracked by WireVisualUpdateTracker (visual-only swap in progress)
+ * 
+ * Important:
+ * - BreakBlockEvent fires BEFORE the block is actually removed
+ * - Components can still be read during this handler
+ * - By the time TopologySystem processes DESTROYED events, block is gone
+ */
 class PowerBlockBreakEvent : EntityEventSystem<EntityStore, BreakBlockEvent>(BreakBlockEvent::class.java) {
     override fun handle(
         index: Int,
