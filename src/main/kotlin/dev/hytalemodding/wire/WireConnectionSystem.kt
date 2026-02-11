@@ -6,9 +6,19 @@ import dev.hytalemodding.ExamplePlugin
 import dev.hytalemodding.newnet.*
 
 /**
- * Check if the block at [pos] has a PowerConnectable face facing toward [fromFace].
- * [fromFace] is the face index of the *querying* block (the direction we looked),
- * so the neighbor needs connectivity on OPPOSITE_FACE[fromFace].
+ * Checks if a block at a position can connect to a wire face.
+ * 
+ * This function checks the *opposite* face of the neighbor block, because if we're
+ * looking from face N, the neighbor needs connectivity on OPPOSITE_FACE[N] to connect back.
+ * 
+ * Example:
+ * - Wire has UP face (face 1) → checks neighbor's DOWN face (face 0)
+ * - Wire has NORTH face (face 2) → checks neighbor's SOUTH face (face 3)
+ * 
+ * @param world The game world
+ * @param pos Position of the neighbor block to check
+ * @param fromFace The face index we're checking from (on the querying block)
+ * @return true if neighbor has PowerConnectable and the opposite face is connectable
  */
 fun isConnectableAt(world: World, pos: Vector3i, fromFace: Int): Boolean {
     val conn = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerConnectableComponentType) ?: return false
@@ -17,8 +27,14 @@ fun isConnectableAt(world: World, pos: Vector3i, fromFace: Int): Boolean {
 }
 
 /**
- * Get wire connections for a position by checking all 6 neighbors.
- * Face ordering: DOWN=0, UP=1, NORTH=2, SOUTH=3, WEST=4, EAST=5
+ * Computes wire connection state by checking all 6 neighbor positions.
+ * 
+ * Returns a WireConnections data class with boolean flags for each direction.
+ * Used by WireLookupTable to determine the correct wire variant and rotation.
+ * 
+ * @param world The game world
+ * @param pos Position of the wire block
+ * @return WireConnections indicating which directions have connectable neighbors
  */
 fun getConnections(world: World, pos: Vector3i): WireConnections {
     return WireConnections(
@@ -31,6 +47,18 @@ fun getConnections(world: World, pos: Vector3i): WireConnections {
     )
 }
 
+/**
+ * Checks if a block type ID represents a wire block.
+ * 
+ * Matches:
+ * - "Wire" (base variant)
+ * - "*Wire" (base variant with state marker)
+ * - "Wire_XX_1", "Wire_UX_2a", etc. (all 24 variants)
+ * - "*Wire_XX_1", etc. (variants with state marker)
+ * 
+ * @param blockTypeId The block type identifier
+ * @return true if the block is any wire variant
+ */
 fun isWireBlock(blockTypeId: String): Boolean {
     val normalized = blockTypeId.removePrefix("*")
     return normalized == "Wire" || normalized.startsWith("Wire_")

@@ -12,14 +12,39 @@ import dev.hytalemodding.newnet.StateChangeEventQueue
 import java.util.logging.Level
 
 /**
- * Glider plugin - implements upright (no-banking) glider physics using ECS.
- * Features automatic activation when airborne, camera-controlled flight, and realistic physics.
+ * Main plugin class for the Hytale modding project.
+ * 
+ * Implements a 4-state logic power network system with:
+ * - Per-face network assignment (each block face can belong to different networks)
+ * - Multi-driver resolution (multiple sources can drive the same net)
+ * - Delta-cycle evaluation (iterative stabilization)
+ * - Relay-controlled topology (relays alter network connectivity)
+ * - Conflict detection (UNKNOWN_X state destroys blocks)
+ * 
+ * ## Core Components
+ * - **PowerConnectable**: Declares which faces can connect to networks
+ * - **PowerNetIds**: Stores network ID for each face (6 IDs per block)
+ * - **PowerSource**: Inverting driver blocks (multi-input NOR gates)
+ * - **PowerWire**: Wire blocks that bridge all faces
+ * - **Lamp**: Power consumer blocks (light up when powered)
+ * - **Relay**: Controlled switches (alter topology based on control signals)
+ * - **InputPort**: Network probe blocks (read net state for relay/source control)
+ * - **VisualState**: Generic visual state component
+ * 
+ * ## Core Systems
+ * - **TopologySystem**: Manages network topology, evaluation, and visual updates
+ * - **VisualStateSystem**: Applies visual state changes and wire shape updates
+ * - **PowerBlockAddedSystem**: Handles block placement events
+ * - **PowerBlockBreakEvent**: Handles block destruction events
+ * 
+ * All components and systems are registered in setup().
  */
 class ExamplePlugin(init: JavaPluginInit) : JavaPlugin(init) {
 
     lateinit var reactiveChunkComponentType: ComponentType<ChunkStore, ReactiveChunk>
 
     companion object {
+        // Component type references stored in companion object for global access
 //        lateinit var lampComponentType: ComponentType<ChunkStore, Lamp>
 //        lateinit var sourceComponentType: ComponentType<ChunkStore, Source>
 //        lateinit var transportComponentType: ComponentType<ChunkStore, Transport>

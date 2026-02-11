@@ -74,14 +74,22 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
 //    }
 //}
 
+/**
+ * Returns all 6 adjacent block positions (±X, ±Y, ±Z).
+ * 
+ * Order: UP, DOWN, EAST, WEST, SOUTH, NORTH
+ * 
+ * @param pos Center block position
+ * @return List of 6 adjacent positions
+ */
 fun getAllAdjacent(pos: Vector3i): List<Vector3i> {
     val adjacentDelta: List<Triple<Int, Int, Int>> = listOf(
-        Triple(0, 1, 0),
-        Triple(0, -1, 0),
-        Triple(1, 0, 0),
-        Triple(-1, 0, 0),
-        Triple(0, 0, 1),
-        Triple(0, 0, -1),
+        Triple(0, 1, 0),   // UP
+        Triple(0, -1, 0),  // DOWN
+        Triple(1, 0, 0),   // EAST
+        Triple(-1, 0, 0),  // WEST
+        Triple(0, 0, 1),   // SOUTH
+        Triple(0, 0, -1),  // NORTH
     )
     val adjacents: MutableList<Vector3i> = mutableListOf()
     for (delta in adjacentDelta) {
@@ -90,6 +98,17 @@ fun getAllAdjacent(pos: Vector3i): List<Vector3i> {
     return adjacents
 }
 
+/**
+ * Checks if a block at the given position has a specific component type.
+ * 
+ * Legacy utility from old power system - rarely used in new system.
+ * 
+ * @param atPos Block position (chunk-local coordinates)
+ * @param type Component type to check for
+ * @param blockComponentChunk The BlockComponentChunk
+ * @param cmdBuf Command buffer
+ * @return true if block exists and has the component
+ */
 fun <T : Component<ChunkStore>> blockIsType(
     atPos: Vector3i,
     type: ComponentType<ChunkStore, T>,

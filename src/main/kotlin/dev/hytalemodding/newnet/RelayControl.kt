@@ -6,9 +6,18 @@ import dev.hytalemodding.ExamplePlugin
 import dev.hytalemodding.newnet.shared.State4
 
 /**
- * Returns a bitmask of control faces for a relay at [relayPos].
- * A face is a control face iff the adjacent block on that face is an InputPort
- * whose driverSideFace points back toward the relay.
+ * Determines which faces of a relay block are control faces.
+ * 
+ * A face is a control face if:
+ * - The adjacent block on that face is an InputPort
+ * - The InputPort's driverSideFace points back toward the relay
+ * 
+ * Control faces are isolated from conduction during topology flood fill.
+ * This allows relays to read control signals without conducting them.
+ * 
+ * @param relayPos Position of the relay block
+ * @param world The game world
+ * @return 6-bit mask where bit N set means face N is a control face
  */
 fun getControlFaces(relayPos: Vector3i, world: World): Int {
     var mask = 0
@@ -25,8 +34,24 @@ fun getControlFaces(relayPos: Vector3i, world: World): Int {
 }
 
 /**
- * Evaluates a single relay's control state from resolved net values.
- * Returns (enabled, controlFault).
+ * Evaluates a relay's control state by reading all control InputPort probes.
+ * 
+ * Control evaluation rules (pure OR logic):
+ * - No control faces → (disabled, no fault)
+ * - Any control net is UNKNOWN_X → (disabled, controlFault=true) — safe-off
+ * - Any control net is ONE → (enabled, no fault)
+ * - All control nets ZERO/HIGH_Z → (disabled, no fault)
+ * 
+ * For each control face:
+ * 1. Find the adjacent InputPort
+ * 2. Probe the block on the InputPort's output face
+ * 3. Read that block's PowerNetIds to get the network ID
+ * 4. Look up the 4-state value in powerNetValueCache
+ * 
+ * @param relayPos Position of the relay block
+ * @param world The game world
+ * @param queue State queue with current net values
+ * @return Pair of (enabled, controlFault)
  */
 fun evaluateRelayControl(
     relayPos: Vector3i,
@@ -73,8 +98,23 @@ fun evaluateRelayControl(
 }
 
 /**
- * Evaluates all relays in [dirtyBlocks] and updates their enabled/controlFault state.
- * Returns true if any relay's enabled state changed (topology needs rebuild).
+ * Evaluates all relay blocks in the dirty set and updates their control state.
+ * 
+ * For each relay:
+ * - Reads all control InputPort values
+ * - Computes new enabled/controlFault state
+ * - Compares to previous state to detect toggles
+ * 
+ * If any relay toggled (enabled changed), topology must be rebuilt because
+ * relay conduction affects network connectivity (enabled relays star-connect
+ * their conduction faces; disabled relays have no internal connectivity).
+ * 
+ * Called after delta-cycle evaluation completes in each topology round.
+ *
+ * @param dirtyBlocks Blocks affected by this topology round
+ * @param world The game world
+ * @param queue State queue with resolved net values
+ * @return true if any relay's enabled state changed (topology rebuild required)
  */
 fun evaluateAllRelayControls(
     dirtyBlocks: Set<Vector3i>,
@@ -97,8 +137,15 @@ fun evaluateAllRelayControls(
 }
 
 /**
- * Collects positions of relays whose enabled state changed in this round.
+ * Collects positions of all relays whose enabled state changed.
+ * 
  * These positions become seeds for the next topology rebuild round.
+ * When a relay toggles, the networks on its conduction faces merge (if enabling)
+ * or split (if disabling), requiring full topology recalculation.
+ * 
+ * @param dirtyBlocks Blocks to scan for toggled relays
+ * @param world The game world
+ * @return Set of relay positions where enabled != lastEnabled
  */
 fun collectToggledRelayPositions(dirtyBlocks: Set<Vector3i>, world: World): MutableSet<Vector3i> {
     val toggled = mutableSetOf<Vector3i>()

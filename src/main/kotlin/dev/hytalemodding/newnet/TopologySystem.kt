@@ -14,23 +14,56 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
 import dev.hytalemodding.ExamplePlugin
 import dev.hytalemodding.newnet.shared.State4
 
+/**
+ * Kinds of state changes that trigger topology recalculation.
+ */
 enum class StateChangeKind { PLACED, DESTROYED }
 
+/**
+ * Represents a block placement or destruction event that requires power network topology update.
+ *
+ * @property pos The global block position
+ * @property kind Whether the block was placed or destroyed
+ */
 data class StateChangeEvent(
     val pos: Vector3i,
     val kind: StateChangeKind,
 )
 
+/**
+ * Represents a single block face belonging to a power network.
+ * Used for reverse indexing: which block faces belong to which net ID.
+ *
+ * @property pos The global block position
+ * @property face The face index (0-5: DOWN, UP, NORTH, SOUTH, WEST, EAST)
+ */
 data class NetEntry(val pos: Vector3i, val face: Int)
 
+/**
+ * Store-level resource (singleton) for tracking power network state and pending changes.
+ *
+ * This resource maintains:
+ * - Pending block change events to process
+ * - Network ID allocation and membership tracking
+ * - Cached 4-state values for each network
+ * - Dirty sets for visual and wire shape updates
+ */
 class StateChangeEventQueue : Resource<ChunkStore> {
+    /** Pending block placement/destruction events to process in TopologySystem.tick() */
     val changes: MutableList<StateChangeEvent> = mutableListOf()
+    
+    /** Auto-incrementing net ID allocator */
     var nextNetId: Int = 0
+    
+    /** Current 4-state value (ZERO, ONE, HIGH_Z, UNKNOWN_X) for each active network */
     val powerNetValueCache: MutableMap<Int, State4> = mutableMapOf()
+    
     /** Reverse index: net ID -> all (pos, face) entries on that net */
     val netMembers: MutableMap<Int, MutableSet<NetEntry>> = mutableMapOf()
+    
     /** Positions whose visual state needs updating (populated by logic, consumed by VisualStateSystem) */
     val visualDirtyPositions: MutableSet<Vector3i> = mutableSetOf()
+    
     /** Positions whose wire shape needs updating (populated by event systems, consumed by VisualStateSystem) */
     val wireDirtyPositions: MutableSet<Vector3i> = mutableSetOf()
 
@@ -40,12 +73,27 @@ class StateChangeEventQueue : Resource<ChunkStore> {
             BuilderCodec.builder(StateChangeEventQueue::class.java) { StateChangeEventQueue() }.build()
     }
 
+    /**
+     * Allocates a new unique network ID.
+     * @return A new network ID
+     */
     fun allocateNetId(): Int = nextNetId++
 
+    /**
+     * Registers a block face as a member of a network.
+     * @param netId The network ID
+     * @param pos The block position
+     * @param face The face index (0-5)
+     */
     fun addNetMember(netId: Int, pos: Vector3i, face: Int) {
         netMembers.getOrPut(netId) { mutableSetOf() }.add(NetEntry(pos, face))
     }
 
+    /**
+     * Removes all membership records for a network.
+     * Called when a network is invalidated and will be rebuilt.
+     * @param netId The network ID to remove
+     */
     fun removeNet(netId: Int) {
         netMembers.remove(netId)
     }
@@ -53,16 +101,32 @@ class StateChangeEventQueue : Resource<ChunkStore> {
     override fun clone(): Resource<ChunkStore> = StateChangeEventQueue()
 }
 
+/** Sentinel value indicating a block face has no network assignment */
 const val UNASSIGNED = -1
 
+/** Human-readable face names for debugging (indexed 0-5) */
 val FACE_NAMES = arrayOf("DOWN", "UP", "NORTH", "SOUTH", "WEST", "EAST")
 
-// Offsets indexed by face: DOWN=0, UP=1, NORTH=2, SOUTH=3, WEST=4, EAST=5
+/** X-axis offsets for each face direction (indexed by face: 0=DOWN, 1=UP, 2=NORTH, 3=SOUTH, 4=WEST, 5=EAST) */
 val FACE_DX = intArrayOf(0, 0, 0, 0, -1, 1)
+
+/** Y-axis offsets for each face direction */
 val FACE_DY = intArrayOf(-1, 1, 0, 0, 0, 0)
+
+/** Z-axis offsets for each face direction */
 val FACE_DZ = intArrayOf(0, 0, -1, 1, 0, 0)
+
+/** Maps each face to its opposite face (e.g., UP->DOWN, NORTH->SOUTH) */
 val OPPOSITE_FACE = intArrayOf(1, 0, 3, 2, 5, 4)
 
+/**
+ * Computes the position of the neighbor block across a given face,
+ * and the face index on that neighbor pointing back.
+ *
+ * @param pos The starting block position
+ * @param face The face index to cross (0-5)
+ * @return Pair of (neighbor position, face index on neighbor pointing back to pos)
+ */
 fun neighborOfFace(pos: Vector3i, face: Int): Pair<Vector3i, Int> {
     return Pair(
         Vector3i(pos.x + FACE_DX[face], pos.y + FACE_DY[face], pos.z + FACE_DZ[face]),
@@ -70,6 +134,13 @@ fun neighborOfFace(pos: Vector3i, face: Int): Pair<Vector3i, Int> {
     )
 }
 
+/**
+ * Expands a set of seed positions to include all immediately adjacent blocks (6 neighbors each).
+ * Used to widen the "dirty zone" to catch blocks that might be affected by topology changes.
+ *
+ * @param seeds Initial set of block positions
+ * @return Expanded set including seeds + all their neighbors
+ */
 fun expand(seeds: Set<Vector3i>): Set<Vector3i> {
     val expanded = mutableSetOf<Vector3i>()
     for (seed in seeds) {
@@ -82,9 +153,15 @@ fun expand(seeds: Set<Vector3i>): Set<Vector3i> {
 }
 
 /**
- * Extends seed blocks to include blocks fed by InputPorts in the set.
- * When an InputPort's net changes, the relay/source on its driver side must be re-evaluated.
- * Without this, a relay 2 hops from a changed wire (wire → InputPort → relay) would be missed.
+ * Extends seed blocks to include driver-side neighbors of any InputPorts in the set.
+ * 
+ * When an InputPort's probed net changes, the relay/source on its driver side must be 
+ * re-evaluated. Without this expansion, a relay 2 hops from a changed wire 
+ * (wire → InputPort → relay) would be missed during topology rebuild.
+ *
+ * @param seedBlocks Initial set of dirty block positions
+ * @param world The game world
+ * @return Expanded set including InputPort driver-side blocks
  */
 fun expandForInputPortDrivers(seedBlocks: Set<Vector3i>, world: World): Set<Vector3i> {
     val expanded = seedBlocks.toMutableSet()
@@ -97,10 +174,16 @@ fun expandForInputPortDrivers(seedBlocks: Set<Vector3i>, world: World): Set<Vect
 }
 
 /**
- * Scans neighbors of dirty blocks for InputPorts and includes the InputPort + its
- * driver-side block (relay/source). This ensures relays are re-evaluated when a
- * wire adjacent to their InputPort changes, even if the relay itself isn't on an
- * affected net.
+ * Scans neighbors of dirty blocks for InputPorts and includes the InputPort plus its
+ * driver-side block (relay/source).
+ * 
+ * This ensures relays are re-evaluated when a wire adjacent to their InputPort changes,
+ * even if the relay block itself isn't on an affected net. The iterative expansion in
+ * TopologySystem continues until no new InputPorts are discovered.
+ *
+ * @param dirtyBlocks Set of blocks known to need topology recalculation
+ * @param world The game world
+ * @return Expanded set including adjacent InputPorts and their driver blocks
  */
 fun expandForAdjacentInputPorts(dirtyBlocks: Set<Vector3i>, world: World): Set<Vector3i> {
     val expanded = dirtyBlocks.toMutableSet()
@@ -117,8 +200,20 @@ fun expandForAdjacentInputPorts(dirtyBlocks: Set<Vector3i>, world: World): Set<V
     return expanded
 }
 
+/**
+ * Retrieves a component from a block at global world coordinates.
+ * 
+ * This is a critical utility function that handles the chunk/block coordinate conversion
+ * required to access components in Hytale's ECS architecture.
+ *
+ * @param world The game world
+ * @param pos Global block position
+ * @param type The component type to retrieve
+ * @return The component instance, or null if block doesn't exist or lacks the component
+ */
 fun <T : Component<ChunkStore>> getComponentForGlobalXyz(world: World, pos: Vector3i, type: ComponentType<ChunkStore, T>): T? {
     val chunkStore = world.chunkStore
+    // Convert global block coords to chunk index
     val chunkIndex = ChunkUtil.indexChunkFromBlock(pos.x, pos.z)
     val chunkRef = chunkStore.getChunkReference(chunkIndex) ?: return null
 
@@ -127,6 +222,7 @@ fun <T : Component<ChunkStore>> getComponentForGlobalXyz(world: World, pos: Vect
         BlockComponentChunk.getComponentType()
     ) ?: return null
 
+    // Convert to chunk-local coordinates (0-31)
     val localX = pos.x and 31
     val localZ = pos.z and 31
     val blockIndex = ChunkUtil.indexBlockInColumn(localX, pos.y, localZ)
@@ -138,10 +234,28 @@ fun <T : Component<ChunkStore>> getComponentForGlobalXyz(world: World, pos: Vect
 
 // --- Phase 1: Clear nets from seeds ---
 
+/**
+ * Invalidates all power networks that touch any of the seed blocks.
+ * 
+ * For each seed block, this function:
+ * 1. Collects all network IDs assigned to any face of the block
+ * 2. For each affected network, resets all member faces to UNASSIGNED
+ * 3. Removes the network from the membership index
+ * 
+ * This is the first phase of topology recalculation. After nets are cleared,
+ * Phase 2 (rebuildPowerTopology) will re-assign nets via flood fill.
+ *
+ * @param seedBlocks Blocks that triggered topology recalculation (placed/broken/toggled)
+ * @param world The game world
+ * @param queue State queue holding network membership data
+ * @return All block positions that had their net assignments cleared (includes all members of cleared nets)
+ */
 fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue): Set<Vector3i> {
+    // Step 1: Collect all nets that touch any seed block
     val netsToInvalidate = mutableSetOf<Int>()
     for (pos in seedBlocks) {
         val ids = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+        // Check all 6 faces of this block
         for (face in 0..5) {
             val netId = ids.get(face)
             if (netId != UNASSIGNED) {
@@ -153,6 +267,7 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, world: World, queue: StateChan
     val allDirtyPositions = mutableSetOf<Vector3i>()
     allDirtyPositions.addAll(seedBlocks)
 
+    // Step 2: Clear all faces belonging to invalidated nets
     for (netId in netsToInvalidate) {
         val members = queue.netMembers[netId] ?: continue
         val clearedFaces = mutableListOf<String>()
@@ -160,7 +275,7 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, world: World, queue: StateChan
             allDirtyPositions.add(entry.pos)
             val ids = getComponentForGlobalXyz(world, entry.pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
             val oldId = ids.get(entry.face)
-            ids.set(entry.face, UNASSIGNED)
+            ids.set(entry.face, UNASSIGNED)  // Reset to unassigned
             if (oldId != UNASSIGNED) {
                 clearedFaces.add("${entry.pos} ${FACE_NAMES[entry.face]}(was=$oldId)")
             }
@@ -168,6 +283,7 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, world: World, queue: StateChan
         if (clearedFaces.isNotEmpty()) {
             println("[clearNets] Net $netId cleared: $clearedFaces")
         }
+        // Remove from membership index (will be rebuilt in Phase 2)
         queue.removeNet(netId)
     }
 
@@ -176,6 +292,23 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, world: World, queue: StateChan
 
 // --- Phase 2: Rebuild topology via flood fill ---
 
+/**
+ * Rebuilds power network topology for all dirty blocks via flood-fill.
+ * 
+ * For each connectable face on each dirty block that doesn't already have a net assignment,
+ * this function allocates a new network ID and performs a breadth-first flood fill to assign
+ * that ID to all reachable faces.
+ * 
+ * The flood fill respects:
+ * - Face connectivity (PowerConnectable.facesMask)
+ * - Wire internal bridging (all faces connect)
+ * - Relay internal bridging (only when enabled, and only non-control faces connect)
+ * - Cross-block adjacency (face-to-opposite-face)
+ *
+ * @param dirtyBlocks Blocks needing network assignment
+ * @param world The game world
+ * @param queue State queue for allocating IDs and tracking membership
+ */
 fun rebuildPowerTopology(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val conn = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerConnectableComponentType) ?: continue
@@ -192,6 +325,26 @@ fun rebuildPowerTopology(dirtyBlocks: Set<Vector3i>, world: World, queue: StateC
     }
 }
 
+/**
+ * Performs breadth-first flood fill to assign a network ID to all reachable block faces.
+ * 
+ * This function implements the core connectivity rules:
+ * 1. **Wire blocks**: Star-connect all 6 faces (all faces share the same net)
+ * 2. **Relay blocks (enabled)**: Star-connect all non-control faces (control faces isolated)
+ * 3. **Relay blocks (disabled)**: No internal connectivity
+ * 4. **Cross-block adjacency**: A face connects to the opposite face of the neighbor block
+ * 
+ * The BFS queue contains (position, face) pairs. Each iteration:
+ * - Assigns the net ID to the current face
+ * - Spreads to other faces on the same block (if wire or enabled relay)
+ * - Spreads to the opposite face of the neighbor block
+ *
+ * @param startPos Starting block position
+ * @param startFace Starting face index (0-5)
+ * @param netId The network ID to assign
+ * @param world The game world
+ * @param queue State queue for membership tracking
+ */
 fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, world: World, queue: StateChangeEventQueue) {
     val bfsQueue = ArrayDeque<Pair<Vector3i, Int>>()
     bfsQueue.add(Pair(startPos, startFace))
@@ -202,18 +355,20 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, world: World,
         val conn = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerConnectableComponentType) ?: continue
         val ids = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
 
+        // Skip if face isn't connectable or already assigned
         if (conn.facesMask and (1 shl face) == 0) continue
         if (ids.get(face) != UNASSIGNED) continue
 
+        // Assign this face to the network
         ids.set(face, netId)
         queue.addNetMember(netId, pos, face)
         println("[floodFill] Assign net $netId to $pos face=${FACE_NAMES[face]}")
 
-        // Internal connectivity: PowerWire bridges all faces, Relay bridges conduction faces only
+        // Internal connectivity rule 1: PowerWire bridges all connectable faces
         val isWire = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerWireComponentType) != null
         if (isWire) {
             for (face2 in 0..5) {
-                if (face2 == face) continue
+                if (face2 == face) continue  // Skip self
                 if (conn.facesMask and (1 shl face2) != 0 && ids.get(face2) == UNASSIGNED) {
                     println("[floodFill]   Wire internal spread $pos ${FACE_NAMES[face]} -> ${FACE_NAMES[face2]}")
                     bfsQueue.add(Pair(pos, face2))
@@ -221,15 +376,17 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, world: World,
             }
         }
 
-        // Relay internal connectivity: enabled relay star-connects conduction (non-control) faces
+        // Internal connectivity rule 2: Enabled relay star-connects all conduction (non-control) faces
         val relay = getComponentForGlobalXyz(world, pos, ExamplePlugin.relayComponentType)
         if (relay != null && relay.enabled) {
-            val controlMask = getControlFaces(pos, world)
+            val controlMask = getControlFaces(pos, world)  // Bitmask of faces with InputPorts
             val faceIsControl = controlMask and (1 shl face) != 0
+            // Only spread from conduction faces (control faces are isolated)
             if (!faceIsControl) {
                 for (face2 in 0..5) {
-                    if (face2 == face) continue
+                    if (face2 == face) continue  // Skip self
                     val face2IsControl = controlMask and (1 shl face2) != 0
+                    // Only spread to other conduction faces
                     if (!face2IsControl && conn.facesMask and (1 shl face2) != 0 && ids.get(face2) == UNASSIGNED) {
                         println("[floodFill]   Relay internal spread $pos ${FACE_NAMES[face]} -> ${FACE_NAMES[face2]}")
                         bfsQueue.add(Pair(pos, face2))
@@ -238,7 +395,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, world: World,
             }
         }
 
-        // External adjacency: check neighbor block across this face
+        // External adjacency: Spread to the opposite face of the neighbor block
         val (npos, nface) = neighborOfFace(pos, face)
         val nconn = getComponentForGlobalXyz(world, npos, ExamplePlugin.powerConnectableComponentType) ?: continue
         val nids = getComponentForGlobalXyz(world, npos, ExamplePlugin.powerNetIdsComponentType) ?: continue
@@ -252,6 +409,15 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, world: World,
 
 // --- Phase 3: Collect dirty net IDs ---
 
+/**
+ * Collects all unique network IDs present on any face of the dirty blocks.
+ * 
+ * These net IDs will need their values re-evaluated in the delta-cycle loop.
+ *
+ * @param dirtyBlocks Blocks that were affected by topology changes
+ * @param world The game world
+ * @return Set of all network IDs that need evaluation
+ */
 fun collectNetIds(dirtyBlocks: Set<Vector3i>, world: World): Set<Int> {
     val netIds = mutableSetOf<Int>()
     for (pos in dirtyBlocks) {
@@ -268,22 +434,41 @@ fun collectNetIds(dirtyBlocks: Set<Vector3i>, world: World): Set<Int> {
 
 // --- Phase 4: Evaluate sources (inverter-source logic) ---
 
+/**
+ * Computes the drive state for an inverting power source (NOT gate).
+ * 
+ * A PowerSource acts as a multi-input inverter:
+ * - Scans all adjacent InputPorts whose driverSideFace points toward this source
+ * - Reads the 4-state value of each InputPort's probed network
+ * - Applies inversion logic:
+ *   - No inputs → drive ONE (default-on)
+ *   - Any input is UNKNOWN_X → drive UNKNOWN_X (propagate error)
+ *   - Mix of ONE and ZERO → drive UNKNOWN_X (conflict)
+ *   - All inputs ONE → drive ZERO (invert)
+ *   - All inputs ZERO or HIGH_Z → drive ONE (invert)
+ *
+ * @param sourcePos Position of the PowerSource block
+ * @param world The game world
+ * @param queue State queue with current net values
+ * @return The computed 4-state drive value (ZERO, ONE, HIGH_Z, or UNKNOWN_X)
+ */
 fun computeInverterDrive(sourcePos: Vector3i, world: World, queue: StateChangeEventQueue): State4 {
     val conn = getComponentForGlobalXyz(world, sourcePos, ExamplePlugin.powerConnectableComponentType)
         ?: return State4.ONE
 
     val inputValues = mutableListOf<State4>()
 
+    // Scan all 6 faces for adjacent InputPorts
     for (face in 0..5) {
-        if (conn.facesMask and (1 shl face) == 0) continue
+        if (conn.facesMask and (1 shl face) == 0) continue  // Face not connectable
         val (npos, nface) = neighborOfFace(sourcePos, face)
         val inputPort = getComponentForGlobalXyz(world, npos, ExamplePlugin.inputPortComponentType)
-            ?: continue
-        // Check that the InputPort's driverSideFace points back at this source
+            ?: continue  // No InputPort here
+        // Verify the InputPort's driverSideFace points back at this source
         if (inputPort.driverSideFace != nface) continue
 
-        // Probe the block adjacent to the InputPort's output face (not the InputPort itself).
-        // InputPort has no PowerNetIds — it's a pure probe that reads the neighboring block's net.
+        // Probe the block adjacent to the InputPort's output face.
+        // InputPort itself has no PowerNetIds — it's a transparent probe.
         val outputFace = OPPOSITE_FACE[inputPort.driverSideFace]
         val (probePos, probeFace) = neighborOfFace(npos, outputFace)
         val probeIds = getComponentForGlobalXyz(world, probePos, ExamplePlugin.powerNetIdsComponentType)
@@ -296,16 +481,26 @@ fun computeInverterDrive(sourcePos: Vector3i, world: World, queue: StateChangeEv
         inputValues.add(inputNetValue)
     }
 
-    // Inversion rules
-    if (inputValues.isEmpty()) return State4.ONE
-    if (inputValues.any { it == State4.UNKNOWN_X }) return State4.UNKNOWN_X
+    // Apply NOR-gate inversion rules (multi-input inverter)
+    if (inputValues.isEmpty()) return State4.ONE  // No inputs → default-on
+    if (inputValues.any { it == State4.UNKNOWN_X }) return State4.UNKNOWN_X  // Propagate error
     val hasOne = inputValues.any { it == State4.ONE }
     val hasZero = inputValues.any { it == State4.ZERO }
-    if (hasOne && hasZero) return State4.UNKNOWN_X
-    if (hasOne) return State4.ZERO  // invert
-    return State4.ONE               // all ZERO or HIGH_Z -> drive 1
+    if (hasOne && hasZero) return State4.UNKNOWN_X  // Conflict: both active and inactive
+    if (hasOne) return State4.ZERO  // Any input is ONE → drive ZERO (invert)
+    return State4.ONE               // All inputs ZERO or HIGH_Z → drive ONE (invert)
 }
 
+/**
+ * Re-evaluates all PowerSource blocks in the dirty set and updates their drive state.
+ * 
+ * Called during each delta-cycle iteration. Sources read their InputPort values
+ * and compute new drive states via multi-input inversion.
+ *
+ * @param dirtyBlocks Blocks affected by this topology round
+ * @param world The game world
+ * @param queue State queue with current net values and caching
+ */
 fun evaluateSources(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val source = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerSourceComponentType) ?: continue
@@ -317,6 +512,25 @@ fun evaluateSources(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChange
 
 // --- Phase 5: Resolve nets (multi-driver 4-state) ---
 
+/**
+ * Resolves the final 4-state value for each dirty network by combining all driver contributions.
+ * 
+ * For each network:
+ * 1. Collects the driveState of all PowerSource blocks connected to that net
+ * 2. Applies 4-state resolution rules:
+ *    - No drivers → HIGH_Z (floating)
+ *    - Any driver is UNKNOWN_X → UNKNOWN_X (error propagates)
+ *    - Multiple distinct non-Z drivers (e.g., ONE + ZERO) → UNKNOWN_X (short circuit)
+ *    - All non-Z drivers agree → that value (ZERO or ONE)
+ * 
+ * This implements Verilog-style tri-state bus resolution, allowing multiple drivers
+ * but detecting conflicts.
+ *
+ * @param dirtyNetIds Network IDs to resolve
+ * @param dirtyBlocks Blocks in the dirty zone (used to find sources)
+ * @param world The game world
+ * @param queue State queue; updated with resolved net values
+ */
 fun resolveNets(dirtyNetIds: Set<Int>, dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue) {
     val netDrivers = mutableMapOf<Int, MutableList<State4>>()
     for (netId in dirtyNetIds) {
@@ -345,6 +559,20 @@ fun resolveNets(dirtyNetIds: Set<Int>, dirtyBlocks: Set<Vector3i>, world: World,
 
 // --- Phase 6: Destroy blocks on X nets ---
 
+/**
+ * Destroys all blocks connected to networks with UNKNOWN_X value (error/conflict state).
+ * 
+ * This implements the "magic smoke" failure mode: when a network has conflicting drivers
+ * or reaches an unstable oscillating state, all blocks on that net are destroyed and
+ * turned into Empty blocks.
+ * 
+ * After destruction, DESTROYED events are queued so topology rebuilds next tick for
+ * any survivors adjacent to the destroyed blocks.
+ *
+ * @param dirtyNetIds Networks to check for UNKNOWN_X state
+ * @param world The game world
+ * @param queue State queue; DESTROYED events are added for each destroyed block
+ */
 fun destroyXNets(dirtyNetIds: Set<Int>, world: World, queue: StateChangeEventQueue) {
     val positionsToDestroy = mutableSetOf<Vector3i>()
     for (netId in dirtyNetIds) {
@@ -371,7 +599,18 @@ fun destroyXNets(dirtyNetIds: Set<Int>, world: World, queue: StateChangeEventQue
 
 // --- Phase 7: Update visual states ---
 
-/** Mark a block's VisualState dirty if it changed. Returns true if changed. */
+/**
+ * Updates a block's VisualState component and marks it dirty if the state changed.
+ * 
+ * The VisualStateSystem (which runs after TopologySystem) will read these dirty
+ * positions and apply the block interaction state changes.
+ *
+ * @param pos Block position
+ * @param world The game world
+ * @param queue State queue; position added to visualDirtyPositions if state changed
+ * @param newState The desired interaction state name (e.g., "On", "default")
+ * @return true if the state changed, false if it was already the target state
+ */
 fun setVisualState(pos: Vector3i, world: World, queue: StateChangeEventQueue, newState: String): Boolean {
     val vs = getComponentForGlobalXyz(world, pos, ExamplePlugin.visualStateComponentType) ?: return false
     if (vs.state != newState) {
@@ -382,6 +621,16 @@ fun setVisualState(pos: Vector3i, world: World, queue: StateChangeEventQueue, ne
     return false
 }
 
+/**
+ * Updates visual state for all Lamp blocks in the dirty set.
+ * 
+ * A lamp is lit if ANY of its connected faces belongs to a network with value ONE.
+ * The VisualState is set to "On" if lit, "default" otherwise.
+ *
+ * @param dirtyBlocks Blocks to check for Lamp components
+ * @param world The game world
+ * @param queue State queue with current net values
+ */
 fun updateLamps(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val lamp = getComponentForGlobalXyz(world, pos, ExamplePlugin.lampComponentType) ?: continue
@@ -411,6 +660,16 @@ fun updateLamps(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEven
     }
 }
 
+/**
+ * Updates visual state for all Relay blocks in the dirty set.
+ * 
+ * A relay's visual reflects its conducting state (enabled/disabled), NOT its powered state.
+ * Visual is "On" when enabled (conduction active), "default" when disabled.
+ *
+ * @param dirtyBlocks Blocks to check for Relay components
+ * @param world The game world
+ * @param queue State queue for marking visual dirty positions
+ */
 fun updateRelayVisuals(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val relay = getComponentForGlobalXyz(world, pos, ExamplePlugin.relayComponentType) ?: continue
@@ -421,6 +680,16 @@ fun updateRelayVisuals(dirtyBlocks: Set<Vector3i>, world: World, queue: StateCha
     }
 }
 
+/**
+ * Updates visual state for all PowerSource (driver) blocks in the dirty set.
+ * 
+ * A PowerSource's visual reflects its drive output. Visual is "On" when driving ONE,
+ * "default" for all other states (ZERO, HIGH_Z, UNKNOWN_X).
+ *
+ * @param dirtyBlocks Blocks to check for PowerSource components
+ * @param world The game world
+ * @param queue State queue for marking visual dirty positions
+ */
 fun updateDriverVisuals(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val source = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerSourceComponentType) ?: continue
@@ -431,6 +700,16 @@ fun updateDriverVisuals(dirtyBlocks: Set<Vector3i>, world: World, queue: StateCh
     }
 }
 
+/**
+ * Updates visual state for all PowerWire blocks in the dirty set.
+ * 
+ * A wire is powered if ANY of its connected network IDs has value ONE.
+ * Visual is "On" when powered, "default" otherwise.
+ *
+ * @param dirtyBlocks Blocks to check for PowerWire components
+ * @param world The game world
+ * @param queue State queue with current net values
+ */
 fun updateWireVisuals(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val wire = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerWireComponentType) ?: continue
@@ -449,6 +728,16 @@ fun updateWireVisuals(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChan
     }
 }
 
+/**
+ * Updates visual state for all InputPort blocks in the dirty set.
+ * 
+ * An InputPort's visual reflects the value of the network it probes (on its output face,
+ * opposite the driver side). Visual is "On" when probed net is ONE, "default" otherwise.
+ *
+ * @param dirtyBlocks Blocks to check for InputPort components
+ * @param world The game world
+ * @param queue State queue with current net values
+ */
 fun updateInputPortVisuals(dirtyBlocks: Set<Vector3i>, world: World, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val inputPort = getComponentForGlobalXyz(world, pos, ExamplePlugin.inputPortComponentType) ?: continue
@@ -471,6 +760,58 @@ fun updateInputPortVisuals(dirtyBlocks: Set<Vector3i>, world: World, queue: Stat
 
 // --- Main system ---
 
+/**
+ * Core ticking system that manages power network topology, evaluation, and visual updates.
+ * 
+ * # Architecture Overview
+ * 
+ * TopologySystem implements a 4-state logic network (ZERO, ONE, HIGH_Z, UNKNOWN_X) with:
+ * - **Per-face network assignment**: Each block face can belong to a different network
+ * - **Multi-driver resolution**: Multiple sources can drive the same net (tri-state logic)
+ * - **Delta-cycle evaluation**: Networks stabilize through iterative evaluation
+ * - **Relay-induced topology changes**: Enabled/disabled relays alter network connectivity
+ * - **Conflict detection**: UNKNOWN_X state destroys blocks (magic smoke)
+ * 
+ * # Execution Flow (per tick)
+ * 
+ * ## Outer Loop: Topology Rounds (max 8)
+ * Handles relay state changes that alter network connectivity.
+ * 
+ * ### Phase 1-2: Topology Rebuild
+ * - Expand seed blocks to include neighbors + InputPort driver blocks
+ * - Clear all networks touching seed blocks (Phase 1: clearNetsFromSeeds)
+ * - Rebuild networks via flood fill (Phase 2: rebuildPowerTopology)
+ * - Iteratively expand for adjacent InputPorts until stable
+ * 
+ * ### Phase 3-5: Network Evaluation
+ * - Collect all dirty network IDs
+ * - Initialize all nets to HIGH_Z
+ * - **Inner Delta-Cycle Loop** (max 64 cycles):
+ *   - Evaluate all PowerSource blocks (inverter logic)
+ *   - Resolve network values (multi-driver 4-state)
+ *   - Check if stable (no net values changed)
+ *   - If unstable after 64 cycles → force all nets to UNKNOWN_X
+ * 
+ * ### Phase 6-7: Relay Control & Topology Check
+ * - Evaluate relay control states (enabled/disabled based on InputPort probes)
+ * - If any relay toggled → collect toggled positions and loop back for another topology round
+ * - If stable or rounds exhausted → break outer loop
+ * 
+ * ## Post-Topology Processing
+ * 
+ * ### Phase 8: Destroy X Nets
+ * - Find all networks with UNKNOWN_X value
+ * - Destroy all blocks connected to those nets
+ * - Queue DESTROYED events for next tick
+ * 
+ * ### Phase 9-10: Visual Updates
+ * - Update VisualState for all block types (Lamp, Relay, PowerSource, InputPort, PowerWire)
+ * - Mark positions dirty for VisualStateSystem to apply
+ * 
+ * # Key Limits
+ * - MAX_DELTA_CYCLES = 64 (inner evaluation loop)
+ * - MAX_TOPOLOGY_ROUNDS = 8 (outer relay toggle loop)
+ */
 class TopologySystem : TickingSystem<ChunkStore>() {
     companion object {
         const val MAX_DELTA_CYCLES = 64
