@@ -1,0 +1,27 @@
+# Build
+build/
+.gradle/
+*.class
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Decompiled server reference (not our code)
+decompiled_server/
+decompiled_server_src/
+
+# Glider system (parked for now)
+src/main/kotlin/dev/hytalemodding/glider/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials
+.hytale-downloader-credentials.json
+
+# Resources dir (if generated)
+resources/
