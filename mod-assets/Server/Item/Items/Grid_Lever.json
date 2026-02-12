@@ -24,7 +24,7 @@
     ],
     "Output": [
       {
-        "ItemId": "Lever"
+        "ItemId": "Grid_Lever"
       }
     ],
     "BenchRequirement": [
@@ -49,6 +49,11 @@
     "Material": "Solid",
     "DrawType": "Model",
     "Group": "Stone",
+    "Interactions": {
+      "Use": {
+        "Interactions": []
+      }
+    },
     "BlockEntity": {
       "Components": {
         "PowerConnectable": {},
