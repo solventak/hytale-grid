@@ -29,6 +29,7 @@ import java.util.logging.Level
  * - **Lamp**: Power consumer blocks (light up when powered)
  * - **Relay**: Controlled switches (alter topology based on control signals)
  * - **InputPort**: Network probe blocks (read net state for relay/source control)
+ * - **Lever**: Interactive toggle blocks (player-controlled power sources)
  * - **VisualState**: Generic visual state component
  * 
  * ## Core Systems
@@ -67,6 +68,7 @@ class ExamplePlugin(init: JavaPluginInit) : JavaPlugin(init) {
         lateinit var relayComponentType: ComponentType<ChunkStore, Relay>
         lateinit var visualStateComponentType: ComponentType<ChunkStore, VisualState>
         lateinit var mux2PartComponentType: ComponentType<ChunkStore, Mux2Part>
+        lateinit var leverComponentType: ComponentType<ChunkStore, Lever>
     }
 
     override fun setup() {
@@ -95,6 +97,8 @@ class ExamplePlugin(init: JavaPluginInit) : JavaPlugin(init) {
         logger.at(Level.INFO).log("[ExamplePlugin] VisualState registered")
         mux2PartComponentType = this.chunkStoreRegistry.registerComponent(Mux2Part::class.java, "Mux2Part", Mux2Part.CODEC)
         logger.at(Level.INFO).log("[ExamplePlugin] Mux2Part registered")
+        leverComponentType = this.chunkStoreRegistry.registerComponent(Lever::class.java, "Lever", Lever.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] Lever registered")
 
         stateChangeQueueType = this.chunkStoreRegistry.registerResource(StateChangeEventQueue::class.java, "StateChangeEventQueue",
             StateChangeEventQueue.CODEC)
@@ -105,6 +109,10 @@ class ExamplePlugin(init: JavaPluginInit) : JavaPlugin(init) {
         logger.at(Level.INFO).log("[ExamplePlugin] PowerBlockAddedSystem registered")
         this.entityStoreRegistry.registerSystem(PowerBlockBreakEvent())
         logger.at(Level.INFO).log("[ExamplePlugin] PowerBlockBreakEvent registered")
+        
+        // Register lever interaction system
+        this.entityStoreRegistry.registerSystem(LeverInteractionSystem())
+        logger.at(Level.INFO).log("[ExamplePlugin] LeverInteractionSystem registered")
 
         // Register topology system
         this.chunkStoreRegistry.registerSystem(TopologySystem())
