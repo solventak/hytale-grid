@@ -31,7 +31,7 @@ import dev.hytalemodding.wire.isWireBlock
  * @param queue State queue with wireDirtyPositions to process
  * @param world The game world
  */
-private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World) {
+private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, worldAccess: WorldAccess) {
     val wireDirty = queue.wireDirtyPositions
     if (wireDirty.isEmpty()) return
 
@@ -40,7 +40,7 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World) 
 
     for (pos in positionsToProcess) {
         // Only process positions that are actually wire blocks
-        val hasPowerWire = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerWireComponentType) ?: continue
+        val hasPowerWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) ?: continue
 
         val chunkIndex = ChunkUtil.indexChunkFromBlock(pos.x, pos.z)
         val chunkRef = world.chunkStore.getChunkReference(chunkIndex) ?: continue
@@ -75,7 +75,7 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World) 
                 chunk.setBlock(pos.x, pos.y, pos.z, blockId, blockType, targetRotation.ordinal, 0, 0)
 
                 // Preserve powered visual state if the block had one
-                val vs = getComponentForGlobalXyz(world, pos, ExamplePlugin.visualStateComponentType)
+                val vs = worldAccess.getComponent(pos, ExamplePlugin.visualStateComponentType)
                 if (vs != null && vs.state != "default") {
                     val newWorldChunk = world.chunkStore.store.getComponent(
                         world.chunkStore.getChunkReference(ChunkUtil.indexChunkFromBlock(pos.x, pos.z))!!,
@@ -122,9 +122,10 @@ class VisualStateSystem : TickingSystem<ChunkStore>() {
     override fun tick(dt: Float, systemIndex: Int, store: Store<ChunkStore>) {
         val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
         val world = store.externalData.world
+        val worldAccess: WorldAccess = HytaleWorldAccess(world)
 
         // --- Wire shape update phase (runs before visual state updates) ---
-        processWireShapeUpdates(queue, world)
+        processWireShapeUpdates(queue, world, worldAccess)
 
         val dirtyPositions = queue.visualDirtyPositions
         if (dirtyPositions.isEmpty()) return
@@ -134,7 +135,7 @@ class VisualStateSystem : TickingSystem<ChunkStore>() {
         val mutations = mutableListOf<VisualMutation>()
 
         for (pos in dirtyPositions) {
-            val vs = getComponentForGlobalXyz(world, pos, ExamplePlugin.visualStateComponentType)
+            val vs = worldAccess.getComponent(pos, ExamplePlugin.visualStateComponentType)
                 ?: continue
             mutations.add(VisualMutation(pos, vs.state))
         }

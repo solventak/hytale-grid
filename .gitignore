@@ -1,3 +1,6 @@
+# Server jar (80MB, not ours)
+libs/
+
 # Build
 build/
 .gradle/

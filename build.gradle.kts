@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "dev.hytalemodding"
-version = "1.0-SNAPSHOT"
+version = "0.1.0"
 
 repositories {
     mavenCentral()
@@ -17,6 +17,13 @@ kotlin {
 
 dependencies {
     implementation(files("libs/HytaleServer.jar"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
+    jvmArgs("-Djava.util.logging.manager=com.hypixel.hytale.logger.HytaleLogManager")
 }
 
 tasks.processResources {
@@ -26,6 +33,8 @@ tasks.processResources {
 }
 
 tasks.shadowJar {
+    archiveBaseName.set("Grid")
+    archiveVersion.set("v${project.version}")
     archiveClassifier.set("")
     dependencies {
         include(dependency("org.jetbrains.kotlin:.*"))

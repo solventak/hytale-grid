@@ -66,6 +66,7 @@ class ExamplePlugin(init: JavaPluginInit) : JavaPlugin(init) {
         lateinit var inputPortComponentType: ComponentType<ChunkStore, InputPort>
         lateinit var relayComponentType: ComponentType<ChunkStore, Relay>
         lateinit var visualStateComponentType: ComponentType<ChunkStore, VisualState>
+        lateinit var mux2PartComponentType: ComponentType<ChunkStore, Mux2Part>
     }
 
     override fun setup() {
@@ -92,6 +93,8 @@ class ExamplePlugin(init: JavaPluginInit) : JavaPlugin(init) {
         logger.at(Level.INFO).log("[ExamplePlugin] Relay registered")
         visualStateComponentType = this.chunkStoreRegistry.registerComponent(VisualState::class.java, "VisualState", VisualState.CODEC)
         logger.at(Level.INFO).log("[ExamplePlugin] VisualState registered")
+        mux2PartComponentType = this.chunkStoreRegistry.registerComponent(Mux2Part::class.java, "Mux2Part", Mux2Part.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] Mux2Part registered")
 
         stateChangeQueueType = this.chunkStoreRegistry.registerResource(StateChangeEventQueue::class.java, "StateChangeEventQueue",
             StateChangeEventQueue.CODEC)

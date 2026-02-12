@@ -106,23 +106,38 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         // If this block has an InputPort component, validate and configure its driverSideFace
         if (inputPort != null) {
             val world = store.externalData.world
+            val worldAccess: WorldAccess = HytaleWorldAccess(world)
             var foundDriverFace: Int? = null
             for (face in 0..5) {
                 val (npos, _) = neighborOfFace(pos, face)
-                val neighborSource = getComponentForGlobalXyz(world, npos, ExamplePlugin.powerSourceComponentType)
-                val neighborRelay = getComponentForGlobalXyz(world, npos, ExamplePlugin.relayComponentType)
-                if (neighborSource != null || neighborRelay != null) {
+                val neighborSource = worldAccess.getComponent(npos, ExamplePlugin.powerSourceComponentType)
+                val neighborRelay = worldAccess.getComponent(npos, ExamplePlugin.relayComponentType)
+                val neighborMux = worldAccess.getComponent(npos, ExamplePlugin.mux2PartComponentType)
+                if (neighborSource != null || neighborRelay != null || (neighborMux != null && neighborMux.isComplete)) {
                     foundDriverFace = face
                     break
                 }
             }
             if (foundDriverFace == null) {
-                println("[PowerBlockAddedSystem] InputPort at $pos has no adjacent PowerSource or Relay, destroying")
+                println("[PowerBlockAddedSystem] InputPort at $pos has no adjacent PowerSource, Relay, or complete MUX, destroying")
                 world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
                 return
             }
             inputPort.driverSideFace = foundDriverFace
             println("[PowerBlockAddedSystem] InputPort at $pos configured: driverSide=${FACE_NAMES[foundDriverFace]}")
+        }
+
+        // If this block is a Mux2Part, handle pairing logic
+        val mux = cmdBuf.getComponent(ref, ExamplePlugin.mux2PartComponentType)
+        if (mux != null) {
+            val world = store.externalData.world
+            val worldAccess: WorldAccess = HytaleWorldAccess(world)
+            val paired = tryPairMux(pos, mux, worldAccess)
+            if (!paired && shouldDestroyIncompleteMux(pos, worldAccess)) {
+                println("[PowerBlockAddedSystem] Incomplete MUX at $pos has invalid neighbors, destroying")
+                world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
+                return
+            }
         }
 
         val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
@@ -154,7 +169,8 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
 
     override fun getQuery(): Query<ChunkStore> = Query.or(
         Query.and(BlockModule.BlockStateInfo.getComponentType(), ExamplePlugin.powerConnectableComponentType),
-        Query.and(BlockModule.BlockStateInfo.getComponentType(), ExamplePlugin.inputPortComponentType)
+        Query.and(BlockModule.BlockStateInfo.getComponentType(), ExamplePlugin.inputPortComponentType),
+        Query.and(BlockModule.BlockStateInfo.getComponentType(), ExamplePlugin.mux2PartComponentType)
     )
 }
 
@@ -193,21 +209,28 @@ class PowerBlockBreakEvent : EntityEventSystem<EntityStore, BreakBlockEvent>(Bre
         event: BreakBlockEvent
     ) {
         val world = cmdBuf.externalData.world
+        val worldAccess: WorldAccess = HytaleWorldAccess(world)
         val pos = event.targetBlock
 
         // Skip if this is a wire shape swap (not a real break)
         if (WireVisualUpdateTracker.isUpdating(pos)) return
 
-        val hasPowerConnectable = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerConnectableComponentType) != null
-        val hasInputPort = getComponentForGlobalXyz(world, pos, ExamplePlugin.inputPortComponentType) != null
-        if (!hasPowerConnectable && !hasInputPort) return
+        val hasPowerConnectable = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) != null
+        val hasInputPort = worldAccess.getComponent(pos, ExamplePlugin.inputPortComponentType) != null
+        val hasMux = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType) != null
+        if (!hasPowerConnectable && !hasInputPort && !hasMux) return
+
+        // If this is a MUX block, handle pair destruction
+        if (hasMux) {
+            handleMuxDestroyed(pos, worldAccess)
+        }
 
         val queue = world.chunkStore.store.getResource(ExamplePlugin.stateChangeQueueType)
         queue.changes.add(StateChangeEvent(pos, StateChangeKind.DESTROYED))
         println("[PowerBlockBreakEvent] Queued DESTROYED at (${pos.x}, ${pos.y}, ${pos.z}), queue size: ${queue.changes.size}")
 
         // If this block is a wire, mark neighbors for wire shape update
-        val hasPowerWire = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerWireComponentType) != null
+        val hasPowerWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) != null
         if (hasPowerWire) {
             for (face in 0..5) {
                 queue.wireDirtyPositions.add(
