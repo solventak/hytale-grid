@@ -6,12 +6,12 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODS_DIR="$HOME/.var/app/com.hypixel.HytaleLauncher/data/Hytale/UserData/Mods"
-ASSETS_DIR="$HOME/.var/app/com.hypixel.HytaleLauncher/data/Hytale/UserData/Saves/asdf/mods/alexkennedy.test"
+ASSETS_DIR="$HOME/.var/app/com.hypixel.HytaleLauncher/data/Hytale/UserData/Saves/asdf/mods/alexkennedy.Grid"
 
 cd "$SCRIPT_DIR"
 
 echo "=== Building mod ==="
-./gradlew clean build
+./gradlew clean build -x test
 
 # Find the built jar
 JAR=$(find build/libs -name "*.jar" ! -name "*-sources.jar" | head -1)

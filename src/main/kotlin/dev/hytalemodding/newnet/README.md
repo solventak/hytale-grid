@@ -44,6 +44,28 @@ Networks carry one of four states:
 - Opposite face probes adjacent block's network
 - Auto-configures driverSideFace on placement (destroyed if no valid driver found)
 
+#### Mux2 (2:1 Multiplexer)
+- **Selective relay** — 2-block multiblock that routes one of two inputs to output
+- Topology-level routing (not computed): physically connects Y to A or B net based on S
+- **Physical layout**: Two Mux2Part blocks side-by-side along a pair axis
+  - **S (select)**: InputPort on the narrow face (only one MUX block exposed)
+  - **A (input 0)**: InputPort on the fat end, on the block closer to S
+  - **B (input 1)**: InputPort on the fat end, on the block farther from S
+  - **Y (output)**: Opposite fat end — conducts to whichever input is selected
+- **Select behavior**:
+  - S=0 (ZERO) → Y connects to A's net
+  - S=1 (ONE) → Y connects to B's net
+  - S=HIGH_Z → disconnected (no conduction)
+  - S=UNKNOWN_X → disconnected + controlFault (safe-off)
+- **InputPort pass-through**: A/B InputPorts bridge power through to MUX input faces
+  (unlike normal InputPorts which only sense). Flood fill reaches through them in both directions.
+- **Dynamic conduction mask**: Each MUX block's connectable faces change based on select state.
+  Only selected input face + pair face + output face conduct. Non-selected input is isolated.
+- **Placement**: Incomplete MUX (single block) self-destructs if adjacent to any PowerConnectable,
+  InputPort, or complete MUX. Two adjacent Mux2Part blocks auto-pair.
+- **Visual**: Selected block shows "On" state (blue), non-selected shows "default"
+- Color: Blue (blue_off/blue_on textures)
+
 #### Lamp
 - Passive power consumer
 - Lit when ANY connected face's network is ONE
@@ -58,6 +80,7 @@ Networks carry one of four states:
 | `PowerSource` | Marks block as inverting driver, stores drive state |
 | `PowerWire` | Marker for wire blocks (special connectivity) |
 | `Relay` | Stores relay enabled/controlFault/lastEnabled state |
+| `Mux2Part` | Stores pairedPos, pairFace, selectedInput, isDisconnected, controlFault |
 | `InputPort` | Stores driverSideFace configuration |
 | `Lamp` | Stores lit state |
 | `VisualState` | Generic visual state component ("default", "On") |
@@ -93,8 +116,13 @@ Handles relay state changes that alter network connectivity.
    - Check if stable (no net values changed)
    - Repeat until stable or max cycles reached
    - If unstable → force all nets to UNKNOWN_X
-6. **Phase 6: Evaluate relay controls** → Read InputPort probes, update enabled state
-7. **If any relay toggled** → collect positions and loop back for another topology round
+6. **Phase 6: Evaluate relay and MUX controls** → Read InputPort probes, update states
+   - Relay: OR of control inputs → enabled/disabled
+   - MUX: Read S InputPort → selectedInput (0=A, 1=B) or disconnected
+   - **MUX controls only evaluated on round 0** to prevent oscillation
+     (re-seeding clears S's net; re-probing would read HIGH_Z and oscillate)
+7. **If any relay/MUX toggled** → collect positions, expand through InputPorts
+   (including far-side blocks behind MUX InputPorts), and loop back
 8. **If stable** → break outer loop
 
 #### Post-Topology Processing
@@ -107,6 +135,7 @@ After topology stabilizes (or rounds exhaust):
   - Relay: "On" if enabled
   - PowerSource: "On" if driveState is ONE
   - InputPort: "On" if probed net is ONE
+  - MUX: Selected block "On", non-selected "default"
   - PowerWire: "On" if any net is ONE
 
 ### VisualStateSystem.tick()
@@ -146,7 +175,18 @@ During network assignment (floodFillPower):
 1. **Wire blocks**: All connectable faces star-connect (same net)
 2. **Relay blocks (enabled)**: Conduction faces star-connect, control faces isolated
 3. **Relay blocks (disabled)**: No internal connectivity
-4. **Cross-block adjacency**: Face N connects to OPPOSITE_FACE[N] on neighbor
+4. **MUX blocks (complete, non-disconnected)**: Dynamic conduction mask based on select state
+   - Selected input face + pair face + output face conduct
+   - Non-selected input face is isolated
+   - Seed generation uses conduction mask (not facesMask) to prevent spurious nets
+   - Flood fill entry check also uses conduction mask
+5. **Cross-block adjacency**: Face N connects to OPPOSITE_FACE[N] on neighbor
+6. **MUX InputPort pass-through**: When flood fill reaches a MUX input face or a wire
+   adjacent to a MUX InputPort, it bridges through the InputPort to the block on the
+   other side. This allows power to flow: source → wire → InputPort → MUX input face.
+   Works in both directions (MUX→wire and wire→MUX).
+7. **MUX net merge**: If flood fill reaches a MUX face that already has a different net
+   (from a different flood fill path), the nets are merged (all members reassigned).
 
 ### Relay Control Evaluation
 
@@ -190,6 +230,24 @@ Wire (control) → InputPort → [Relay] → Wire → Lamp
                   (probe)     (switch)
 ```
 
+### 2:1 MUX
+```
+                    S (select)
+                    │
+               InputPort
+                    │
+          ┌─────[MUX MUX]─────┐
+          │    (pair axis)     │
+     InputPort            (output fat end)
+     InputPort                 │
+          │                  Lamp
+     Wire A / Wire B
+     (power sources)
+```
+- S=0 → Lamp shows Wire A's value
+- S=1 → Lamp shows Wire B's value
+- InputPorts on A/B are pass-through (power flows through them)
+
 ### Feedback Loop (Oscillator)
 ```
 [PowerSource] → Wire → InputPort ↩
@@ -225,6 +283,10 @@ newnet/
 ├── Lamp.kt                        Lamp component
 ├── Relay.kt                       Relay component
 ├── InputPort.kt                   Network probe component
+├── Mux2Part.kt                    MUX multiblock component
+├── Mux2Control.kt                 MUX select evaluation + control logic
+├── Mux2PlacementSystem.kt         MUX pairing, validation, destruction
+├── Mux2Topology.kt                MUX conduction mask + topology helpers
 ├── VisualState.kt                 Generic visual state component
 └── shared/
     ├── State4.kt                  4-state logic enum

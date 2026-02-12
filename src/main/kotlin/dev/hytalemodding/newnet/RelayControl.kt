@@ -1,7 +1,7 @@
 package dev.hytalemodding.newnet
 
 import com.hypixel.hytale.math.vector.Vector3i
-import com.hypixel.hytale.server.core.universe.world.World
+
 import dev.hytalemodding.ExamplePlugin
 import dev.hytalemodding.newnet.shared.State4
 
@@ -19,11 +19,11 @@ import dev.hytalemodding.newnet.shared.State4
  * @param world The game world
  * @return 6-bit mask where bit N set means face N is a control face
  */
-fun getControlFaces(relayPos: Vector3i, world: World): Int {
+fun getControlFaces(relayPos: Vector3i, worldAccess: WorldAccess): Int {
     var mask = 0
     for (face in 0..5) {
         val (npos, nface) = neighborOfFace(relayPos, face)
-        val inputPort = getComponentForGlobalXyz(world, npos, ExamplePlugin.inputPortComponentType)
+        val inputPort = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
             ?: continue
         // InputPort's driverSideFace should point back at the relay (== nface, the face facing the relay)
         if (inputPort.driverSideFace == nface) {
@@ -55,10 +55,10 @@ fun getControlFaces(relayPos: Vector3i, world: World): Int {
  */
 fun evaluateRelayControl(
     relayPos: Vector3i,
-    world: World,
+    worldAccess: WorldAccess,
     queue: StateChangeEventQueue
 ): Pair<Boolean, Boolean> {
-    val controlMask = getControlFaces(relayPos, world)
+    val controlMask = getControlFaces(relayPos, worldAccess)
     if (controlMask == 0) {
         // No control faces → disabled, no fault
         return Pair(false, false)
@@ -72,11 +72,11 @@ fun evaluateRelayControl(
         // Probe the block adjacent to the InputPort's output face (not the InputPort itself).
         // InputPort has no PowerNetIds — it's a pure probe that reads the neighboring block's net.
         val (npos, nface) = neighborOfFace(relayPos, face)
-        val inputPort = getComponentForGlobalXyz(world, npos, ExamplePlugin.inputPortComponentType)
+        val inputPort = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
             ?: continue
         val outputFace = OPPOSITE_FACE[inputPort.driverSideFace]
         val (probePos, probeFace) = neighborOfFace(npos, outputFace)
-        val probeIds = getComponentForGlobalXyz(world, probePos, ExamplePlugin.powerNetIdsComponentType)
+        val probeIds = worldAccess.getComponent(probePos, ExamplePlugin.powerNetIdsComponentType)
         val netId = probeIds?.get(probeFace) ?: UNASSIGNED
         val netValue = if (netId != UNASSIGNED) {
             queue.powerNetValueCache[netId] ?: State4.HIGH_Z
@@ -118,13 +118,13 @@ fun evaluateRelayControl(
  */
 fun evaluateAllRelayControls(
     dirtyBlocks: Set<Vector3i>,
-    world: World,
+    worldAccess: WorldAccess,
     queue: StateChangeEventQueue
 ): Boolean {
     var anyToggled = false
     for (pos in dirtyBlocks) {
-        val relay = getComponentForGlobalXyz(world, pos, ExamplePlugin.relayComponentType) ?: continue
-        val (enabled, controlFault) = evaluateRelayControl(pos, world, queue)
+        val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType) ?: continue
+        val (enabled, controlFault) = evaluateRelayControl(pos, worldAccess, queue)
         relay.lastEnabled = relay.enabled
         relay.enabled = enabled
         relay.controlFault = controlFault
@@ -147,10 +147,10 @@ fun evaluateAllRelayControls(
  * @param world The game world
  * @return Set of relay positions where enabled != lastEnabled
  */
-fun collectToggledRelayPositions(dirtyBlocks: Set<Vector3i>, world: World): MutableSet<Vector3i> {
+fun collectToggledRelayPositions(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess): MutableSet<Vector3i> {
     val toggled = mutableSetOf<Vector3i>()
     for (pos in dirtyBlocks) {
-        val relay = getComponentForGlobalXyz(world, pos, ExamplePlugin.relayComponentType) ?: continue
+        val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType) ?: continue
         if (relay.enabled != relay.lastEnabled) {
             toggled.add(pos)
         }
