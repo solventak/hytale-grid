@@ -627,6 +627,16 @@ fun computeInverterDrive(sourcePos: Vector3i, worldAccess: WorldAccess, queue: S
 fun evaluateSources(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val source = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: continue
+        
+        // Skip inverter evaluation for Lever blocks - they're manually controlled
+        val lever = worldAccess.getComponent(pos, ExamplePlugin.leverComponentType)
+        if (lever != null) {
+            // Lever state was already set by LeverInteractionSystem, don't overwrite
+            source.lastDriveState = source.driveState
+            println("[evaluateSources] Lever at $pos: drive=${source.driveState} (manual control)")
+            continue
+        }
+        
         source.lastDriveState = source.driveState
         source.driveState = computeInverterDrive(pos, worldAccess, queue)
         println("[evaluateSources] Source at $pos: drive=${source.driveState} (was ${source.lastDriveState})")
