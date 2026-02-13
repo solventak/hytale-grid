@@ -203,9 +203,9 @@ object WireLookupTable {
                 // Three-way - canonical is NEW (missing South)
                 val rotation = when {
                     !s -> Rotation.None       // NEW, missing S
-                    !w -> Rotation.Ninety     // NES, missing W
+                    !w -> Rotation.TwoSeventy // NES, missing W (was Ninety, fixed 180° flip)
                     !n -> Rotation.OneEighty  // ESW, missing N
-                    !e -> Rotation.TwoSeventy // SWN, missing E
+                    !e -> Rotation.Ninety     // SWN, missing E (was TwoSeventy, fixed 180° flip)
                     else -> Rotation.None
                 }
                 Pair(4, rotation)
