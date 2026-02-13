@@ -59,6 +59,9 @@ class StateChangeEventQueue : Resource<ChunkStore> {
     /** Reverse index: net ID -> all (pos, face) entries on that net */
     val netMembers: MutableMap<Int, MutableSet<NetEntry>> = mutableMapOf()
     
+    /** Cached member count for each net (for fast empty-net checks during clearing) */
+    val netMemberCount: MutableMap<Int, Int> = mutableMapOf()
+    
     /** Positions whose visual state needs updating (populated by logic, consumed by VisualStateSystem) */
     val visualDirtyPositions: MutableSet<Vector3i> = mutableSetOf()
     
@@ -84,7 +87,10 @@ class StateChangeEventQueue : Resource<ChunkStore> {
      * @param face The face index (0-5)
      */
     fun addNetMember(netId: Int, pos: Vector3i, face: Int) {
-        netMembers.getOrPut(netId) { mutableSetOf() }.add(NetEntry(pos, face))
+        val added = netMembers.getOrPut(netId) { mutableSetOf() }.add(NetEntry(pos, face))
+        if (added) {
+            netMemberCount[netId] = (netMemberCount[netId] ?: 0) + 1
+        }
     }
 
     /**
@@ -94,6 +100,7 @@ class StateChangeEventQueue : Resource<ChunkStore> {
      */
     fun removeNet(netId: Int) {
         netMembers.remove(netId)
+        netMemberCount.remove(netId)
     }
 
     override fun clone(): Resource<ChunkStore> = StateChangeEventQueue()
@@ -309,6 +316,13 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, worldAccess: WorldAccess, queu
 
     // Step 2: Clear all faces belonging to invalidated nets
     for (netId in netsToInvalidate) {
+        // Skip empty nets (optimization: avoids iterating through empty member sets)
+        val memberCount = queue.netMemberCount[netId] ?: 0
+        if (memberCount == 0) {
+            queue.removeNet(netId)
+            continue
+        }
+        
         val members = queue.netMembers[netId] ?: continue
         val clearedFaces = mutableListOf<String>()
         for (entry in members) {
