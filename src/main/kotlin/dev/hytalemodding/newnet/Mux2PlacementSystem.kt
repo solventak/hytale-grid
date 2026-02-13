@@ -49,13 +49,11 @@ fun tryPairMux(pos: Vector3i, mux: Mux2Part, worldAccess: WorldAccess): Boolean 
             mux.pairFace = face
             mux.isComplete = true
             mux.isDisconnected = neighborMux.isDisconnected
-            println("[Mux2Placement] MUX at $pos synced with existing pair at $npos (world load recovery)")
             return true
         }
 
         if (neighborMux.isComplete) {
             // Neighbor is already in a complete pair with someone else — can't attach to it
-            println("[Mux2Placement] MUX at $pos can't pair: neighbor at $npos already complete")
             continue
         }
 
@@ -70,7 +68,6 @@ fun tryPairMux(pos: Vector3i, mux: Mux2Part, worldAccess: WorldAccess): Boolean 
         neighborMux.isComplete = true
         neighborMux.isDisconnected = true
 
-        println("[Mux2Placement] MUX pair formed: $pos <-> $npos (axis: ${FACE_NAMES[face]})")
         return true
     }
 
@@ -78,7 +75,6 @@ fun tryPairMux(pos: Vector3i, mux: Mux2Part, worldAccess: WorldAccess): Boolean 
     mux.isComplete = false
     mux.pairedPos = null
     mux.pairFace = -1
-    println("[Mux2Placement] MUX at $pos placed incomplete (no adjacent MUX)")
     return false
 }
 
@@ -99,19 +95,16 @@ fun shouldDestroyIncompleteMux(pos: Vector3i, worldAccess: WorldAccess): Boolean
         val neighborMux = worldAccess.getComponent(npos, ExamplePlugin.mux2PartComponentType)
         if (neighborMux != null) {
             if (neighborMux.isComplete) {
-                println("[Mux2Placement] Incomplete MUX at $pos adjacent to complete MUX at $npos — destroying")
                 return true
             }
             continue // Unpaired MUX neighbor is fine
         }
         // Check if neighbor is a PowerConnectable (wire, relay, lamp, source, etc.)
         if (worldAccess.getComponent(npos, ExamplePlugin.powerConnectableComponentType) != null) {
-            println("[Mux2Placement] Incomplete MUX at $pos has non-MUX connectable neighbor at $npos — destroying")
             return true
         }
         // Check if neighbor is an InputPort
         if (worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType) != null) {
-            println("[Mux2Placement] Incomplete MUX at $pos has InputPort neighbor at $npos — destroying")
             return true
         }
     }
@@ -140,11 +133,9 @@ fun handleMuxDestroyed(destroyedPos: Vector3i, worldAccess: WorldAccess) {
         pairedMux.pairFace = -1
         pairedMux.isDisconnected = true
         pairedMux.controlFault = false
-        println("[Mux2Placement] MUX pair broken: $destroyedPos destroyed, $pairedPos now incomplete")
 
         // Check if the now-incomplete block should also be destroyed
         if (shouldDestroyIncompleteMux(pairedPos, worldAccess)) {
-            println("[Mux2Placement] Remaining MUX at $pairedPos has invalid neighbors — scheduling destroy")
             if (worldAccess is HytaleWorldAccess) {
                 worldAccess.world.execute { worldAccess.world.setBlock(pairedPos.x, pairedPos.y, pairedPos.z, "Empty") }
             }
