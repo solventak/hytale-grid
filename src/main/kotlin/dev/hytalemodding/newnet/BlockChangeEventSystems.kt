@@ -133,12 +133,17 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         if (mux != null) {
             val world = store.externalData.world
             val worldAccess: WorldAccess = HytaleWorldAccess(world)
-            val paired = tryPairMux(pos, mux, worldAccess)
-            if (!paired && shouldDestroyIncompleteMux(pos, worldAccess)) {
-                println("[PowerBlockAddedSystem] Incomplete MUX at $pos has invalid neighbors, destroying")
-                world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
-                return
-            }
+            tryPairMux(pos, mux, worldAccess)
+            
+            // Note: We've removed the immediate validation/destruction logic that was here.
+            // During world load, blocks may load in any order, causing false positives where
+            // a MUX appears incomplete simply because its paired block hasn't loaded yet.
+            // 
+            // The updated tryPairMux now handles bidirectional syncing, so if block A loads
+            // before block B, then block B loads and finds A already paired to it, they sync.
+            // 
+            // Incomplete MUXes (truly unpaired) are inert and won't cause issues - they just
+            // won't function. Players can break and re-place them to pair properly.
         }
 
         // If this block is a Lever, initialize PowerSource driveState based on Lever.isOn
@@ -146,8 +151,8 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         if (lever != null) {
             val powerSource = cmdBuf.getComponent(ref, ExamplePlugin.powerSourceComponentType)
             if (powerSource != null) {
-                // Lever defaults to isOn=false, so set PowerSource to ZERO initially
-                powerSource.driveState = if (lever.isOn) State4.ONE else State4.ZERO
+                // Lever defaults to isOn=false, so set PowerSource to ONE initially (inverted)
+                powerSource.driveState = if (lever.isOn) State4.ZERO else State4.ONE
                 powerSource.lastDriveState = powerSource.driveState
                 println("[PowerBlockAddedSystem] Lever at $pos initialized: isOn=${lever.isOn}, driveState=${powerSource.driveState}")
             }
