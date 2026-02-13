@@ -27,12 +27,25 @@ import dev.hytalemodding.newnet.*
 fun isConnectableAt(world: World, pos: Vector3i, fromFace: Int): Boolean {
     // Check if it's an InputPort (always connectable)
     val inputPort = getComponentForGlobalXyz(world, pos, ExamplePlugin.inputPortComponentType)
-    if (inputPort != null) return true
+    if (inputPort != null) {
+        println("  [Connection] $pos: InputPort (always connectable)")
+        return true
+    }
     
     // Check if it's a PowerConnectable with the required face enabled
     val conn = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerConnectableComponentType) ?: return false
     val neededFace = OPPOSITE_FACE[fromFace]
-    return conn.facesMask and (1 shl neededFace) != 0
+    val connectable = conn.facesMask and (1 shl neededFace) != 0
+    
+    // If it's a wire, also log its channel
+    val wire = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerWireComponentType)
+    if (wire != null) {
+        println("  [Connection] $pos: Wire ch=${wire.channel}, face=$fromFace->$neededFace, connectable=$connectable")
+    } else {
+        println("  [Connection] $pos: PowerConnectable (non-wire), face=$fromFace->$neededFace, connectable=$connectable")
+    }
+    
+    return connectable
 }
 
 /**
