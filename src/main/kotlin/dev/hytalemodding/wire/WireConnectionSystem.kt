@@ -15,12 +15,21 @@ import dev.hytalemodding.newnet.*
  * - Wire has UP face (face 1) → checks neighbor's DOWN face (face 0)
  * - Wire has NORTH face (face 2) → checks neighbor's SOUTH face (face 3)
  * 
+ * Connectable blocks include:
+ * - PowerConnectable blocks (wires, lamps, relays, power sources, MUXes)
+ * - InputPort blocks (always connectable - they probe networks)
+ * 
  * @param world The game world
  * @param pos Position of the neighbor block to check
  * @param fromFace The face index we're checking from (on the querying block)
- * @return true if neighbor has PowerConnectable and the opposite face is connectable
+ * @return true if neighbor is connectable
  */
 fun isConnectableAt(world: World, pos: Vector3i, fromFace: Int): Boolean {
+    // Check if it's an InputPort (always connectable)
+    val inputPort = getComponentForGlobalXyz(world, pos, ExamplePlugin.inputPortComponentType)
+    if (inputPort != null) return true
+    
+    // Check if it's a PowerConnectable with the required face enabled
     val conn = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerConnectableComponentType) ?: return false
     val neededFace = OPPOSITE_FACE[fromFace]
     return conn.facesMask and (1 shl neededFace) != 0
