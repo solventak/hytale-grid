@@ -693,32 +693,70 @@ fun resolveNets(dirtyNetIds: Set<Int>, dirtyBlocks: Set<Vector3i>, worldAccess: 
 // --- Phase 6: Destroy blocks on X nets ---
 
 /**
- * Destroys all blocks connected to networks with UNKNOWN_X value (error/conflict state).
+ * Destroys conflicting PowerSource blocks on networks with UNKNOWN_X value (short circuit).
  * 
- * This implements the "magic smoke" failure mode: when a network has conflicting drivers
- * or reaches an unstable oscillating state, all blocks on that net are destroyed and
- * turned into Empty blocks.
+ * Instead of destroying the entire circuit (old behavior), this function identifies
+ * the specific PowerSource blocks causing the conflict and destroys only ONE of them,
+ * breaking the short circuit while preserving the rest of the circuit.
  * 
- * After destruction, DESTROYED events are queued so topology rebuilds next tick for
- * any survivors adjacent to the destroyed blocks.
+ * For each UNKNOWN_X network:
+ * 1. Find all PowerSource blocks driving that net
+ * 2. Identify conflicting drivers (mix of ONE and ZERO)
+ * 3. Destroy only the "losing" driver (deterministic: keeps ZERO, destroys ONE)
+ * 
+ * This prevents catastrophic circuit loss when accidentally creating a short circuit.
  *
  * @param dirtyNetIds Networks to check for UNKNOWN_X state
+ * @param dirtyBlocks Blocks in the dirty zone (used to find sources)
  * @param worldAccess The world access interface
+ * @param world The game world
  * @param queue State queue; DESTROYED events are added for each destroyed block
  */
-fun destroyXNets(dirtyNetIds: Set<Int>, world: World, queue: StateChangeEventQueue) {
+fun destroyXNets(dirtyNetIds: Set<Int>, dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, world: World, queue: StateChangeEventQueue) {
     val positionsToDestroy = mutableSetOf<Vector3i>()
+    
     for (netId in dirtyNetIds) {
         val value = queue.powerNetValueCache[netId] ?: continue
         if (value != State4.UNKNOWN_X) continue
-        val members = queue.netMembers[netId] ?: continue
-        for (entry in members) {
-            positionsToDestroy.add(entry.pos)
+        
+        // Find all PowerSource blocks driving this net
+        val sourcesOnNet = mutableListOf<Pair<Vector3i, State4>>()
+        for (pos in dirtyBlocks) {
+            val source = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: continue
+            val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+            val conn = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) ?: continue
+            
+            for (face in 0..5) {
+                if (conn.facesMask and (1 shl face) == 0) continue
+                if (ids.get(face) == netId) {
+                    sourcesOnNet.add(pos to source.driveState)
+                    break // Only add this source once
+                }
+            }
+        }
+        
+        // Check if we have a conflict (mix of ONE and ZERO)
+        val driveStates = sourcesOnNet.map { it.second }.toSet()
+        if (State4.ONE in driveStates && State4.ZERO in driveStates) {
+            // Short circuit detected! Find the "losing" source to destroy.
+            // Strategy: Keep ZERO (off state), destroy ONE (active driver causing short)
+            // If multiple ONEs, pick the one with highest coordinates (most recently placed)
+            val conflictingSources = sourcesOnNet.filter { it.second == State4.ONE }
+            if (conflictingSources.isNotEmpty()) {
+                // Sort by position (x, then y, then z descending) and pick the "highest"
+                val toDestroy = conflictingSources.maxByOrNull { (pos, _) -> 
+                    pos.x * 1000000 + pos.y * 1000 + pos.z 
+                }?.first
+                if (toDestroy != null) {
+                    positionsToDestroy.add(toDestroy)
+                }
+            }
         }
     }
+    
     if (positionsToDestroy.isEmpty()) return
 
-    println("[destroyXNets] Destroying ${positionsToDestroy.size} blocks on X nets")
+    println("[destroyXNets] Short circuit! Destroying ${positionsToDestroy.size} conflicting source(s)")
     world.execute {
         for (pos in positionsToDestroy) {
             world.setBlock(pos.x, pos.y, pos.z, "Empty")
@@ -1165,7 +1203,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
         }
 
         // Phase 9: Destroy blocks on X nets
-        destroyXNets(allDirtyNetIds, world, changesQueue)
+        destroyXNets(allDirtyNetIds, allDirtyBlocks, worldAccess, world, changesQueue)
 
         // Phase 10: Update visual states for all block types
         updateLamps(allDirtyBlocks, worldAccess, changesQueue)
