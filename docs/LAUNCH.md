@@ -53,15 +53,6 @@
 
 ---
 
-## Week +1 Follow-Up
-
-- Monitor Reddit/Discord feedback
-- Respond to questions and bug reports
-- Create a "Getting Started" guide if needed
-- Share example: "Here's a working clock circuit in Grid"
-
----
-
 ## Positioning
 
 **Key messaging:**
