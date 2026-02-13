@@ -67,6 +67,100 @@ fun globalPosFromLocal(info: BlockModule.BlockStateInfo, cmdBuf: CommandBuffer<C
 }
 
 /**
+ * Scans the power network starting from a given position to find all PowerSource blocks.
+ * Uses BFS to traverse wire/relay/MUX connections.
+ * 
+ * @param startPos Starting block position
+ * @param worldAccess World access for component queries
+ * @return Set of positions containing PowerSource components on this network
+ */
+fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Set<Vector3i> {
+    val powerSources = mutableSetOf<Vector3i>()
+    val visited = mutableSetOf<Pair<Vector3i, Int>>()
+    val bfsQueue = ArrayDeque<Pair<Vector3i, Int>>()
+    
+    val startConn = worldAccess.getComponent(startPos, ExamplePlugin.powerConnectableComponentType) ?: return powerSources
+    for (face in 0..5) {
+        if (startConn.facesMask and (1 shl face) != 0) {
+            bfsQueue.add(Pair(startPos, face))
+        }
+    }
+    
+    while (bfsQueue.isNotEmpty()) {
+        val (pos, face) = bfsQueue.removeFirst()
+        if (!visited.add(Pair(pos, face))) continue
+        
+        val conn = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) ?: continue
+        
+        val powerSource = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType)
+        if (powerSource != null) {
+            powerSources.add(pos)
+        }
+        
+        val muxCheck = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType)
+        val effectiveMask = if (muxCheck != null && muxCheck.isComplete && !muxCheck.isDisconnected) {
+            getMuxConductionMask(pos, muxCheck, worldAccess)
+        } else {
+            conn.facesMask
+        }
+        if (effectiveMask and (1 shl face) == 0) continue
+        
+        val isWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) != null
+        if (isWire) {
+            for (face2 in 0..5) {
+                if (face2 != face && conn.facesMask and (1 shl face2) != 0) {
+                    bfsQueue.add(Pair(pos, face2))
+                }
+            }
+        }
+        
+        val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType)
+        if (relay != null && relay.enabled) {
+            val controlMask = getControlFaces(pos, worldAccess)
+            val faceIsControl = controlMask and (1 shl face) != 0
+            if (!faceIsControl) {
+                for (face2 in 0..5) {
+                    if (face2 != face) {
+                        val face2IsControl = controlMask and (1 shl face2) != 0
+                        if (!face2IsControl && conn.facesMask and (1 shl face2) != 0) {
+                            bfsQueue.add(Pair(pos, face2))
+                        }
+                    }
+                }
+            }
+        }
+        
+        val mux = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType)
+        if (mux != null && mux.isComplete && !mux.isDisconnected) {
+            val conductionMask = getMuxConductionMask(pos, mux, worldAccess)
+            if (conductionMask and (1 shl face) != 0) {
+                for (face2 in 0..5) {
+                    if (face2 != face && conductionMask and (1 shl face2) != 0) {
+                        bfsQueue.add(Pair(pos, face2))
+                    }
+                }
+            }
+        }
+        
+        val (neighborPos, oppositeFace) = neighborOfFace(pos, face)
+        val neighborConn = worldAccess.getComponent(neighborPos, ExamplePlugin.powerConnectableComponentType)
+        if (neighborConn != null) {
+            val neighborMux = worldAccess.getComponent(neighborPos, ExamplePlugin.mux2PartComponentType)
+            val neighborEffectiveMask = if (neighborMux != null && neighborMux.isComplete && !neighborMux.isDisconnected) {
+                getMuxConductionMask(neighborPos, neighborMux, worldAccess)
+            } else {
+                neighborConn.facesMask
+            }
+            if (neighborEffectiveMask and (1 shl oppositeFace) != 0) {
+                bfsQueue.add(Pair(neighborPos, oppositeFace))
+            }
+        }
+    }
+    
+    return powerSources
+}
+
+/**
  * ChunkStore RefSystem that handles block placement/addition events.
  * 
  * Triggers when:
@@ -74,14 +168,17 @@ fun globalPosFromLocal(info: BlockModule.BlockStateInfo, cmdBuf: CommandBuffer<C
  * - The block has PowerConnectable or InputPort components
  * 
  * Responsibilities:
- * 1. **InputPort validation**: If block is an InputPort, scans neighbors for PowerSource/Relay
+ * 1. **Short circuit prevention**: Validates PowerSource and connectable block placement
+ *    - Rejects placement if it would create a short circuit (ONE + ZERO on same net)
+ * 
+ * 2. **InputPort validation**: If block is an InputPort, scans neighbors for PowerSource/Relay
  *    - If no valid driver found → destroys the block
  *    - If driver found → configures inputPort.driverSideFace
  * 
- * 2. **Topology event queuing**: Adds a PLACED event to queue.changes
+ * 3. **Topology event queuing**: Adds a PLACED event to queue.changes
  *    - TopologySystem will process the event in its next tick
  * 
- * 3. **Wire shape marking**: If block is a PowerWire, marks itself + 6 neighbors dirty
+ * 4. **Wire shape marking**: If block is a PowerWire, marks itself + 6 neighbors dirty
  *    - VisualStateSystem will update wire shapes for all marked positions
  * 
  * Skips processing if:
@@ -104,10 +201,69 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         // Skip if this is a wire shape swap (not a real placement)
         if (WireVisualUpdateTracker.isUpdating(pos)) return
 
+        val world = store.externalData.world
+        val worldAccess: WorldAccess = HytaleWorldAccess(world)
+
+        // Initialize Lever driveState before validation (if this is a Lever)
+        val lever = cmdBuf.getComponent(ref, ExamplePlugin.leverComponentType)
+        val powerSource = cmdBuf.getComponent(ref, ExamplePlugin.powerSourceComponentType)
+        if (lever != null && powerSource != null) {
+            powerSource.driveState = if (lever.isOn) State4.ZERO else State4.ONE
+            powerSource.lastDriveState = powerSource.driveState
+        }
+
+        // Short circuit prevention: Validate PowerSource placement
+        if (powerSource != null) {
+            val existingSources = scanNetworkForPowerSources(pos, worldAccess)
+            for (existingPos in existingSources) {
+                if (existingPos == pos) continue
+                val existingSource = worldAccess.getComponent(existingPos, ExamplePlugin.powerSourceComponentType)
+                if (existingSource != null && existingSource.driveState != powerSource.driveState) {
+                    world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
+                    return
+                }
+            }
+        }
+
+        // Short circuit prevention: Validate connectable block (wire/relay/MUX) placement
+        if (hasPowerConnectable && powerSource == null) {
+            val conn = cmdBuf.getComponent(ref, ExamplePlugin.powerConnectableComponentType)
+            if (conn != null) {
+                val allSourceStates = mutableSetOf<State4>()
+                
+                for (face in 0..5) {
+                    if (conn.facesMask and (1 shl face) == 0) continue
+                    
+                    val (neighborPos, oppositeFace) = neighborOfFace(pos, face)
+                    val neighborConn = worldAccess.getComponent(neighborPos, ExamplePlugin.powerConnectableComponentType)
+                    if (neighborConn == null) continue
+                    
+                    val neighborMux = worldAccess.getComponent(neighborPos, ExamplePlugin.mux2PartComponentType)
+                    val neighborEffectiveMask = if (neighborMux != null && neighborMux.isComplete && !neighborMux.isDisconnected) {
+                        getMuxConductionMask(neighborPos, neighborMux, worldAccess)
+                    } else {
+                        neighborConn.facesMask
+                    }
+                    if (neighborEffectiveMask and (1 shl oppositeFace) == 0) continue
+                    
+                    val sourcesInNeighborNetwork = scanNetworkForPowerSources(neighborPos, worldAccess)
+                    for (sourcePos in sourcesInNeighborNetwork) {
+                        val source = worldAccess.getComponent(sourcePos, ExamplePlugin.powerSourceComponentType)
+                        if (source != null) {
+                            allSourceStates.add(source.driveState)
+                        }
+                    }
+                }
+                
+                if (State4.ONE in allSourceStates && State4.ZERO in allSourceStates) {
+                    world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
+                    return
+                }
+            }
+        }
+
         // If this block has an InputPort component, validate and configure its driverSideFace
         if (inputPort != null) {
-            val world = store.externalData.world
-            val worldAccess: WorldAccess = HytaleWorldAccess(world)
             var foundDriverFace: Int? = null
             for (face in 0..5) {
                 val (npos, _) = neighborOfFace(pos, face)
@@ -129,8 +285,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         // If this block is a Mux2Part, handle pairing logic
         val mux = cmdBuf.getComponent(ref, ExamplePlugin.mux2PartComponentType)
         if (mux != null) {
-            val world = store.externalData.world
-            val worldAccess: WorldAccess = HytaleWorldAccess(world)
             tryPairMux(pos, mux, worldAccess)
             
             // Note: We've removed the immediate validation/destruction logic that was here.
@@ -142,17 +296,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
             // 
             // Incomplete MUXes (truly unpaired) are inert and won't cause issues - they just
             // won't function. Players can break and re-place them to pair properly.
-        }
-
-        // If this block is a Lever, initialize PowerSource driveState based on Lever.isOn
-        val lever = cmdBuf.getComponent(ref, ExamplePlugin.leverComponentType)
-        if (lever != null) {
-            val powerSource = cmdBuf.getComponent(ref, ExamplePlugin.powerSourceComponentType)
-            if (powerSource != null) {
-                // Lever defaults to isOn=false, so set PowerSource to ONE initially (inverted)
-                powerSource.driveState = if (lever.isOn) State4.ZERO else State4.ONE
-                powerSource.lastDriveState = powerSource.driveState
-            }
         }
 
         val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
