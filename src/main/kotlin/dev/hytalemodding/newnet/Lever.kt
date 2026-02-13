@@ -10,31 +10,31 @@ import dev.hytalemodding.ExamplePlugin
 
 /**
  * Component marking a block as a manually-toggleable power source (lever).
- * 
+ *
  * Levers are interactive blocks that players can right-click to toggle between
- * ON and OFF states. Unlike PowerSource (which is an inverting multi-input NOR gate),
- * levers are simple binary switches controlled directly by player interaction.
- * 
+ * ON and OFF states. The lever controls a PowerSource component that drives
+ * the power network.
+ *
  * A lever block has both:
  * - This Lever component (stores UI toggle state)
  * - PowerSource component (drives the network with ZERO or ONE)
- * 
- * Behavior:
- * - OFF state: PowerSource.driveState = ZERO (no signal)
- * - ON state: PowerSource.driveState = ONE (strong signal)
+ *
+ * Behavior (INVERTED - PowerSource is an inverting gate):
+ * - OFF state: PowerSource.driveState = ONE (active high)
+ * - ON state: PowerSource.driveState = ZERO (active low)
  * - Right-click interaction toggles between states
  * - State persists through world save/load
  * - Drops as item when broken (renewable resource)
- * 
+ *
  * Visual:
  * - Uses VisualState component for appearance switching
- * - "default" interaction state when OFF (gray texture)
- * - "On" interaction state when ON (white texture)
+ * - "default" interaction state when OFF (white_off texture)
+ * - "On" interaction state when ON (white_on texture)
  */
 class Lever : Component<ChunkStore> {
     /**
      * Current toggle state of the lever.
-     * true = ON (outputs ONE), false = OFF (outputs ZERO)
+     * true = ON (outputs ZERO - inverted), false = OFF (outputs ONE - inverted)
      */
     var isOn: Boolean = false
 
