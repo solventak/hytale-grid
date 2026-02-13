@@ -129,7 +129,6 @@ fun evaluateAllRelayControls(
         relay.enabled = enabled
         relay.controlFault = controlFault
         if (relay.enabled != relay.lastEnabled) {
-            println("[RelayControl] Relay at $pos toggled: enabled=$enabled (was=${relay.lastEnabled}), controlFault=$controlFault")
             anyToggled = true
         }
     }
