@@ -75,6 +75,9 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
         val blockType = BlockType.getAssetMap().getAsset(blockId) ?: continue
 
 
+        // Save channel value before setBlock destroys the block entity
+        val originalChannel = hasPowerWire.channel
+        
         // Mark/clear must be inside world.execute since setBlock triggers RefSystem synchronously
         world.execute {
             val chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(pos.x, pos.z)) ?: return@execute
@@ -82,6 +85,12 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
             try {
                 chunk.setBlock(pos.x, pos.y, pos.z, blockId, blockType, targetRotation.ordinal, 0, 0)
 
+                // Restore channel value (setBlock creates new block entity with default channel=1)
+                val newPowerWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType)
+                if (newPowerWire != null) {
+                    newPowerWire.channel = originalChannel
+                }
+                
                 // Preserve powered visual state if the block had one
                 val vs = worldAccess.getComponent(pos, ExamplePlugin.visualStateComponentType)
                 if (vs != null && vs.state != "default") {
