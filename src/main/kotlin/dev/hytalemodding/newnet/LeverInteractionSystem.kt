@@ -50,8 +50,8 @@ class LeverInteractionSystem : EntityEventSystem<EntityStore, UseBlockEvent.Post
         println("[LeverInteractionSystem] Toggled lever at $pos to ${if (lever.isOn) "ON" else "OFF"}")
 
         // Update PowerSource driveState based on new toggle state
-        // OFF → ZERO, ON → ONE (levers are non-inverting switches)
-        powerSource.driveState = if (lever.isOn) State4.ONE else State4.ZERO
+        // OFF → ONE, ON → ZERO (inverted because PowerSource is an inverting gate)
+        powerSource.driveState = if (lever.isOn) State4.ZERO else State4.ONE
         powerSource.lastDriveState = powerSource.driveState
 
         // Queue topology change event to re-evaluate network
