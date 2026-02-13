@@ -123,7 +123,6 @@ fun getMuxConductionMask(pos: Vector3i, mux: Mux2Part, worldAccess: WorldAccess)
     val side = if (thisIsABlock) "A" else "B"
     val inputName = if (myInputFace != -1) faceNames.getOrElse(myInputFace) { "?" } else "NONE"
     val sel = if (myInputFace != -1 && mux.selectedInput == thisInputIndex) "CONDUCTS" else "ISOLATED"
-    println("[MUX-mask] $pos side=$side sel=${mux.selectedInput} input=$inputName($sel) pair=${faceNames.getOrElse(pairFace){"?"}} mask=0b${mask.toString(2).padStart(6,'0')}")
 
     return mask
 }
