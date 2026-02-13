@@ -321,6 +321,7 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, worldAccess: WorldAccess, queu
             }
         }
         if (clearedFaces.isNotEmpty()) {
+            println("[clearNets] Net $netId cleared: $clearedFaces")
         }
         // Remove from membership index (will be rebuilt in Phase 2)
         queue.removeNet(netId)
@@ -366,6 +367,7 @@ fun rebuildPowerTopology(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, q
             if (ids.get(face) != UNASSIGNED) continue
 
             val netId = queue.allocateNetId()
+            println("[rebuildTopology] New net $netId starting at $pos face=${FACE_NAMES[face]}")
             floodFillPower(pos, face, netId, worldAccess, queue)
         }
     }
@@ -415,6 +417,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         // Assign this face to the network
         ids.set(face, netId)
         queue.addNetMember(netId, pos, face)
+        println("[floodFill] Assign net $netId to $pos face=${FACE_NAMES[face]}")
 
         // Internal connectivity rule 1: PowerWire bridges all connectable faces
         val isWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) != null
@@ -422,6 +425,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
             for (face2 in 0..5) {
                 if (face2 == face) continue  // Skip self
                 if (conn.facesMask and (1 shl face2) != 0 && ids.get(face2) == UNASSIGNED) {
+                    println("[floodFill]   Wire internal spread $pos ${FACE_NAMES[face]} -> ${FACE_NAMES[face2]}")
                     bfsQueue.add(Pair(pos, face2))
                 }
             }
@@ -439,6 +443,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
                     val face2IsControl = controlMask and (1 shl face2) != 0
                     // Only spread to other conduction faces
                     if (!face2IsControl && conn.facesMask and (1 shl face2) != 0 && ids.get(face2) == UNASSIGNED) {
+                        println("[floodFill]   Relay internal spread $pos ${FACE_NAMES[face]} -> ${FACE_NAMES[face2]}")
                         bfsQueue.add(Pair(pos, face2))
                     }
                 }
@@ -456,9 +461,11 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
                     if (conductionMask and (1 shl face2) == 0) continue
                     val existingNet = ids.get(face2)
                     if (existingNet == UNASSIGNED) {
+                        println("[floodFill]   MUX internal spread $pos ${FACE_NAMES[face]} -> ${FACE_NAMES[face2]}")
                         bfsQueue.add(Pair(pos, face2))
                     } else if (existingNet != netId) {
                         // Merge: reassign all members of existingNet to netId
+                        println("[floodFill]   MUX net merge at $pos ${FACE_NAMES[face2]}: net $existingNet -> $netId")
                         val members = queue.netMembers[existingNet]
                         if (members != null) {
                             for ((mPos, mFace) in members.toList()) {
@@ -479,6 +486,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         val nids = worldAccess.getComponent(npos, ExamplePlugin.powerNetIdsComponentType)
 
         if (nconn != null && nids != null && nconn.facesMask and (1 shl nface) != 0 && nids.get(nface) == UNASSIGNED) {
+            println("[floodFill]   External spread $pos ${FACE_NAMES[face]} -> neighbor $npos ${FACE_NAMES[nface]}")
             bfsQueue.add(Pair(npos, nface))
         }
 
@@ -492,6 +500,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
                 val farConn = worldAccess.getComponent(farPos, ExamplePlugin.powerConnectableComponentType)
                 val farIds = worldAccess.getComponent(farPos, ExamplePlugin.powerNetIdsComponentType)
                 if (farConn != null && farIds != null && farConn.facesMask and (1 shl farNface) != 0 && farIds.get(farNface) == UNASSIGNED) {
+                    println("[floodFill]   MUX IP pass-through $pos -> IP $npos -> $farPos ${FACE_NAMES[farNface]}")
                     bfsQueue.add(Pair(farPos, farNface))
                 }
             }
@@ -511,6 +520,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
                     if (muxMask and (1 shl muxNface) != 0) {
                         val muxIds = worldAccess.getComponent(muxPos, ExamplePlugin.powerNetIdsComponentType)
                         if (muxIds != null && muxIds.get(muxNface) == UNASSIGNED) {
+                            println("[floodFill]   MUX IP pass-through $pos -> IP $npos -> MUX $muxPos ${FACE_NAMES[muxNface]}")
                             bfsQueue.add(Pair(muxPos, muxNface))
                         }
                     }
@@ -623,11 +633,13 @@ fun evaluateSources(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue:
         if (lever != null) {
             // Lever state was already set by LeverInteractionSystem, don't overwrite
             source.lastDriveState = source.driveState
+            println("[evaluateSources] Lever at $pos: drive=${source.driveState} (manual control)")
             continue
         }
         
         source.lastDriveState = source.driveState
         source.driveState = computeInverterDrive(pos, worldAccess, queue)
+        println("[evaluateSources] Source at $pos: drive=${source.driveState} (was ${source.lastDriveState})")
     }
 }
 
@@ -681,68 +693,32 @@ fun resolveNets(dirtyNetIds: Set<Int>, dirtyBlocks: Set<Vector3i>, worldAccess: 
 // --- Phase 6: Destroy blocks on X nets ---
 
 /**
- * Destroys conflicting PowerSource blocks on networks with UNKNOWN_X value (short circuit).
+ * Destroys all blocks connected to networks with UNKNOWN_X value (error/conflict state).
  * 
- * Instead of destroying the entire circuit (old behavior), this function identifies
- * the specific PowerSource blocks causing the conflict and destroys only ONE of them,
- * breaking the short circuit while preserving the rest of the circuit.
+ * This implements the "magic smoke" failure mode: when a network has conflicting drivers
+ * or reaches an unstable oscillating state, all blocks on that net are destroyed and
+ * turned into Empty blocks.
  * 
- * For each UNKNOWN_X network:
- * 1. Find all PowerSource blocks driving that net
- * 2. Identify conflicting drivers (mix of ONE and ZERO)
- * 3. Destroy only the "losing" driver (deterministic: lowest driveState wins, then lowest position)
- * 
- * This prevents catastrophic circuit loss when accidentally creating a short circuit.
+ * After destruction, DESTROYED events are queued so topology rebuilds next tick for
+ * any survivors adjacent to the destroyed blocks.
  *
  * @param dirtyNetIds Networks to check for UNKNOWN_X state
- * @param dirtyBlocks Blocks in the dirty zone (used to find sources)
  * @param worldAccess The world access interface
  * @param queue State queue; DESTROYED events are added for each destroyed block
  */
-fun destroyXNets(dirtyNetIds: Set<Int>, dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, world: World, queue: StateChangeEventQueue) {
+fun destroyXNets(dirtyNetIds: Set<Int>, world: World, queue: StateChangeEventQueue) {
     val positionsToDestroy = mutableSetOf<Vector3i>()
-    
     for (netId in dirtyNetIds) {
         val value = queue.powerNetValueCache[netId] ?: continue
         if (value != State4.UNKNOWN_X) continue
-        
-        // Find all PowerSource blocks driving this net
-        val sourcesOnNet = mutableListOf<Pair<Vector3i, State4>>()
-        for (pos in dirtyBlocks) {
-            val source = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: continue
-            val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
-            val conn = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) ?: continue
-            
-            for (face in 0..5) {
-                if (conn.facesMask and (1 shl face) == 0) continue
-                if (ids.get(face) == netId) {
-                    sourcesOnNet.add(pos to source.driveState)
-                    break // Only add this source once
-                }
-            }
-        }
-        
-        // Check if we have a conflict (mix of ONE and ZERO)
-        val driveStates = sourcesOnNet.map { it.second }.toSet()
-        if (State4.ONE in driveStates && State4.ZERO in driveStates) {
-            // Short circuit detected! Find the "losing" source to destroy.
-            // Strategy: Keep ZERO (off state), destroy ONE (active driver causing short)
-            // If multiple ONEs, pick the one with highest coordinates (most recently placed)
-            val conflictingSources = sourcesOnNet.filter { it.second == State4.ONE }
-            if (conflictingSources.isNotEmpty()) {
-                // Sort by position (x, then y, then z descending) and pick the "highest"
-                val toDestroy = conflictingSources.maxByOrNull { (pos, _) -> 
-                    pos.x * 1000000 + pos.y * 1000 + pos.z 
-                }?.first
-                if (toDestroy != null) {
-                    positionsToDestroy.add(toDestroy)
-                }
-            }
+        val members = queue.netMembers[netId] ?: continue
+        for (entry in members) {
+            positionsToDestroy.add(entry.pos)
         }
     }
-    
     if (positionsToDestroy.isEmpty()) return
 
+    println("[destroyXNets] Destroying ${positionsToDestroy.size} blocks on X nets")
     world.execute {
         for (pos in positionsToDestroy) {
             world.setBlock(pos.x, pos.y, pos.z, "Empty")
@@ -811,6 +787,8 @@ fun updateLamps(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: Sta
         lamp.lit = lit
         setVisualState(pos, worldAccess, queue, if (lit) "On" else "default")
         if (faceNets.isNotEmpty()) {
+            println("[updateLamps] Lamp at $pos: nets=$faceNets, lit=$lit (was=$oldLit)" +
+                if (matchedFace != null) " powered via ${FACE_NAMES[matchedFace]}" else " no powered net")
         }
     }
 }
@@ -830,6 +808,7 @@ fun updateRelayVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, que
         val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType) ?: continue
         val newState = if (relay.enabled) "On" else "default"
         if (setVisualState(pos, worldAccess, queue, newState)) {
+            println("[updateRelayVisuals] Relay at $pos: enabled=${relay.enabled}, state=$newState")
         }
     }
 }
@@ -849,6 +828,7 @@ fun updateDriverVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, qu
         val source = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: continue
         val newState = if (source.driveState == State4.ONE) "On" else "default"
         if (setVisualState(pos, worldAccess, queue, newState)) {
+            println("[updateDriverVisuals] PowerSource at $pos: driveState=${source.driveState}, state=$newState")
         }
     }
 }
@@ -868,6 +848,7 @@ fun updateLeverVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, que
         val lever = worldAccess.getComponent(pos, ExamplePlugin.leverComponentType) ?: continue
         val newState = if (lever.isOn) "On" else "default"
         if (setVisualState(pos, worldAccess, queue, newState)) {
+            println("[updateLeverVisuals] Lever at $pos: isOn=${lever.isOn}, state=$newState")
         }
     }
 }
@@ -895,6 +876,7 @@ fun updateWireVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queu
             }
         }
         if (setVisualState(pos, worldAccess, queue, if (powered) "On" else "default")) {
+            println("[updateWireVisuals] Wire at $pos: powered=$powered")
         }
     }
 }
@@ -924,6 +906,7 @@ fun updateInputPortVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess,
         }
         val newState = if (netValue == State4.ONE) "On" else "default"
         if (setVisualState(pos, worldAccess, queue, newState)) {
+            println("[updateInputPortVisuals] InputPort at $pos: probeNet=$netId, value=$netValue, state=$newState")
         }
     }
 }
@@ -971,8 +954,10 @@ fun updateMuxVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue
         val nonSelectedBlockPos = if (mux.selectedInput == 0) bBlockPos else aBlockPos
 
         if (setVisualState(selectedBlockPos, worldAccess, queue, "On")) {
+            println("[updateMuxVisuals] MUX at $selectedBlockPos: ON (selected input ${mux.selectedInput})")
         }
         if (setVisualState(nonSelectedBlockPos, worldAccess, queue, "default")) {
+            println("[updateMuxVisuals] MUX at $nonSelectedBlockPos: OFF (not selected)")
         }
     }
 }
@@ -1046,6 +1031,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
         while (changesQueue.changes.isNotEmpty()) {
             val event = changesQueue.changes.removeFirst()
             seeds.add(event.pos)
+            println("[TopologySystem] Seed: ${event.pos} (${event.kind})")
         }
 
         val world = store.externalData.world
@@ -1062,6 +1048,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
 
         // Outer topology loop: handles relay-induced topology changes
         for (round in 0 until MAX_TOPOLOGY_ROUNDS) {
+            println("[TopologySystem] Topology round $round, seeds=${topologySeeds.size}")
 
             // Phase 3: Clear all nets touched by seed blocks
             var dirtyBlocks: Set<Vector3i> = clearNetsFromSeeds(topologySeeds, worldAccess, changesQueue)
@@ -1080,6 +1067,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
             }
 
             allDirtyBlocks.addAll(dirtyBlocks)
+            println("[TopologySystem] Round $round: ${topologySeeds.size} seed blocks -> ${dirtyBlocks.size} dirty blocks")
 
             // Reset all dirty relays to disabled before rebuilding topology (round 0 only).
             // This prevents stale relay state from merging nets and creating false feedback
@@ -1124,10 +1112,12 @@ class TopologySystem : TickingSystem<ChunkStore>() {
                         break
                     }
                 }
+                println("[TopologySystem] Delta cycle $cycle: stable=$stable")
             }
 
             // Phase 8: If not stable after MAX_DELTA_CYCLES, force all dirty nets to X
             if (!stable) {
+                println("[TopologySystem] UNSTABLE after $MAX_DELTA_CYCLES cycles, forcing X")
                 for (netId in dirtyNetIds) {
                     changesQueue.powerNetValueCache[netId] = State4.UNKNOWN_X
                 }
@@ -1163,17 +1153,19 @@ class TopologySystem : TickingSystem<ChunkStore>() {
                 }
             }
             topologySeeds = expandForInputPortDrivers(expandedToggled, worldAccess)
+            println("[TopologySystem] Relay/MUX toggled, re-seeding with ${topologySeeds.size} blocks for round ${round + 1}")
         }
 
         // If topology loop exhausted, force all accumulated nets to X
         if (!topologyStable) {
+            println("[TopologySystem] TOPOLOGY UNSTABLE after $MAX_TOPOLOGY_ROUNDS rounds, forcing X")
             for (netId in allDirtyNetIds) {
                 changesQueue.powerNetValueCache[netId] = State4.UNKNOWN_X
             }
         }
 
         // Phase 9: Destroy blocks on X nets
-        destroyXNets(allDirtyNetIds, allDirtyBlocks, worldAccess, world, changesQueue)
+        destroyXNets(allDirtyNetIds, world, changesQueue)
 
         // Phase 10: Update visual states for all block types
         updateLamps(allDirtyBlocks, worldAccess, changesQueue)
@@ -1185,6 +1177,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
         updateMuxVisuals(allDirtyBlocks, worldAccess, changesQueue)
 
         if (allDirtyNetIds.isNotEmpty()) {
+            println("[TopologySystem] Rebuilt: ${allDirtyBlocks.size} dirty blocks, ${allDirtyNetIds.size} nets, values: ${changesQueue.powerNetValueCache}")
         }
     }
 }
