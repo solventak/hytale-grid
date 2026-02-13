@@ -212,8 +212,16 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         val world = store.externalData.world
         val worldAccess: WorldAccess = HytaleWorldAccess(world)
 
-        // If this block is a PowerSource, validate that it won't create a short circuit
+        // If this block is a Lever, initialize PowerSource driveState BEFORE validation
+        val lever = cmdBuf.getComponent(ref, ExamplePlugin.leverComponentType)
         val powerSource = cmdBuf.getComponent(ref, ExamplePlugin.powerSourceComponentType)
+        if (lever != null && powerSource != null) {
+            // Lever defaults to isOn=false, so set PowerSource to ONE initially (inverted)
+            powerSource.driveState = if (lever.isOn) State4.ZERO else State4.ONE
+            powerSource.lastDriveState = powerSource.driveState
+        }
+
+        // If this block is a PowerSource, validate that it won't create a short circuit
         if (powerSource != null) {
             val existingSources = scanNetworkForPowerSources(pos, worldAccess)
             
@@ -305,17 +313,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
             // 
             // Incomplete MUXes (truly unpaired) are inert and won't cause issues - they just
             // won't function. Players can break and re-place them to pair properly.
-        }
-
-        // If this block is a Lever, initialize PowerSource driveState based on Lever.isOn
-        val lever = cmdBuf.getComponent(ref, ExamplePlugin.leverComponentType)
-        if (lever != null) {
-            val powerSource = cmdBuf.getComponent(ref, ExamplePlugin.powerSourceComponentType)
-            if (powerSource != null) {
-                // Lever defaults to isOn=false, so set PowerSource to ONE initially (inverted)
-                powerSource.driveState = if (lever.isOn) State4.ZERO else State4.ONE
-                powerSource.lastDriveState = powerSource.driveState
-            }
         }
 
         val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
