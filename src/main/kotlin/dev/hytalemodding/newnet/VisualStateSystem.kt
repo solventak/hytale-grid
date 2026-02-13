@@ -65,7 +65,6 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
         val blockId = BlockType.getAssetMap().getIndex(targetBlockTypeId)
         val blockType = BlockType.getAssetMap().getAsset(blockId) ?: continue
 
-        println("[WireShape] Swapping $pos from $currentBase to $targetBlockTypeId rot=${targetRotation.name}")
 
         // Mark/clear must be inside world.execute since setBlock triggers RefSystem synchronously
         world.execute {
@@ -149,7 +148,6 @@ class VisualStateSystem : TickingSystem<ChunkStore>() {
             ) ?: continue
             val blockType = worldChunk.getBlockType(pos) ?: continue
             worldChunk.setBlockInteractionState(pos, blockType, state)
-            println("[VisualStateSystem] $pos -> $state")
         }
 
         dirtyPositions.clear()
