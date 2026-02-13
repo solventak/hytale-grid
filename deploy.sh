@@ -6,7 +6,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODS_DIR="$HOME/.var/app/com.hypixel.HytaleLauncher/data/Hytale/UserData/Mods"
-ASSETS_DIR="$HOME/.var/app/com.hypixel.HytaleLauncher/data/Hytale/UserData/Saves/asdf/mods/alexkennedy.Grid"
+ASSETS_DIR="$HOME/.var/app/com.hypixel.HytaleLauncher/data/Hytale/UserData/Saves/qwerty/mods/alexkennedy.Grid"
 
 cd "$SCRIPT_DIR"
 
