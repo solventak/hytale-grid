@@ -244,12 +244,10 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                 }
             }
             if (foundDriverFace == null) {
-                println("[PowerBlockAddedSystem] InputPort at $pos has no adjacent PowerSource, Relay, or complete MUX, destroying")
                 world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
                 return
             }
             inputPort.driverSideFace = foundDriverFace
-            println("[PowerBlockAddedSystem] InputPort at $pos configured: driverSide=${FACE_NAMES[foundDriverFace]}")
         }
 
         // If this block is a Mux2Part, handle pairing logic
@@ -278,13 +276,11 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                 // Lever defaults to isOn=false, so set PowerSource to ONE initially (inverted)
                 powerSource.driveState = if (lever.isOn) State4.ZERO else State4.ONE
                 powerSource.lastDriveState = powerSource.driveState
-                println("[PowerBlockAddedSystem] Lever at $pos initialized: isOn=${lever.isOn}, driveState=${powerSource.driveState}")
             }
         }
 
         val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
         queue.changes.add(StateChangeEvent(pos, StateChangeKind.PLACED))
-        println("[PowerBlockAddedSystem] Queued PLACED at (${pos.x}, ${pos.y}, ${pos.z}), queue size: ${queue.changes.size}")
 
         // If this block is a wire, mark it + neighbors for wire shape update
         val hasPowerWire = cmdBuf.getComponent(ref, ExamplePlugin.powerWireComponentType) != null
@@ -295,7 +291,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                     Vector3i(pos.x + FACE_DX[face], pos.y + FACE_DY[face], pos.z + FACE_DZ[face])
                 )
             }
-            println("[PowerBlockAddedSystem] Wire placed at $pos, marked ${queue.wireDirtyPositions.size} wire dirty positions")
         }
     }
 
@@ -369,7 +364,6 @@ class PowerBlockBreakEvent : EntityEventSystem<EntityStore, BreakBlockEvent>(Bre
 
         val queue = world.chunkStore.store.getResource(ExamplePlugin.stateChangeQueueType)
         queue.changes.add(StateChangeEvent(pos, StateChangeKind.DESTROYED))
-        println("[PowerBlockBreakEvent] Queued DESTROYED at (${pos.x}, ${pos.y}, ${pos.z}), queue size: ${queue.changes.size}")
 
         // If this block is a wire, mark neighbors for wire shape update
         val hasPowerWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) != null
@@ -379,7 +373,6 @@ class PowerBlockBreakEvent : EntityEventSystem<EntityStore, BreakBlockEvent>(Bre
                     Vector3i(pos.x + FACE_DX[face], pos.y + FACE_DY[face], pos.z + FACE_DZ[face])
                 )
             }
-            println("[PowerBlockBreakEvent] Wire broken at $pos, marked neighbors for wire shape update")
         }
     }
 
