@@ -417,8 +417,8 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         queue.addNetMember(netId, pos, face)
 
         // Internal connectivity rule 1: PowerWire bridges all connectable faces
-        val isWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) != null
-        if (isWire) {
+        val wire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType)
+        if (wire != null) {
             for (face2 in 0..5) {
                 if (face2 == face) continue  // Skip self
                 if (conn.facesMask and (1 shl face2) != 0 && ids.get(face2) == UNASSIGNED) {
@@ -479,6 +479,14 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         val nids = worldAccess.getComponent(npos, ExamplePlugin.powerNetIdsComponentType)
 
         if (nconn != null && nids != null && nconn.facesMask and (1 shl nface) != 0 && nids.get(nface) == UNASSIGNED) {
+            // Wire channel isolation: wires only connect to same-channel wires
+            // Non-wire components (sources, relays, MUX, decoders, lamps) are channel-agnostic
+            val neighborWire = worldAccess.getComponent(npos, ExamplePlugin.powerWireComponentType)
+            val bothWires = wire != null && neighborWire != null
+            if (bothWires && wire.channel != neighborWire.channel) {
+                // Different wire channels don't connect
+                continue
+            }
             bfsQueue.add(Pair(npos, nface))
         }
 

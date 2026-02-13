@@ -105,8 +105,8 @@ fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Se
         }
         if (effectiveMask and (1 shl face) == 0) continue
         
-        val isWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) != null
-        if (isWire) {
+        val wire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType)
+        if (wire != null) {
             for (face2 in 0..5) {
                 if (face2 != face && conn.facesMask and (1 shl face2) != 0) {
                     bfsQueue.add(Pair(pos, face2))
@@ -152,6 +152,13 @@ fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Se
                 neighborConn.facesMask
             }
             if (neighborEffectiveMask and (1 shl oppositeFace) != 0) {
+                // Wire channel isolation: wires only connect to same-channel wires
+                val neighborWire = worldAccess.getComponent(neighborPos, ExamplePlugin.powerWireComponentType)
+                val bothWires = wire != null && neighborWire != null
+                if (bothWires && wire.channel != neighborWire.channel) {
+                    // Different wire channels don't connect
+                    continue
+                }
                 bfsQueue.add(Pair(neighborPos, oppositeFace))
             }
         }
