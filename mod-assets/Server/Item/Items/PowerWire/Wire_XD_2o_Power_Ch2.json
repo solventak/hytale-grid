@@ -1,0 +1,85 @@
+{
+  "Icon": "Icons/ItemsGenerated/wire.png",
+  "IconProperties": {
+    "Scale": 0.58823,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  },
+  "Categories": [
+    "Furniture.Furniture"
+  ],
+  "MaxStack": 100,
+  "PlayerAnimationsId": "Block",
+  "Set": "Wire_Block_Ch2",
+  "BlockType": {
+    "State": {
+      "Definitions": {
+        "On": {
+          "Light": {
+            "Color": "#44f",
+            "Radius": 1
+          }
+        }
+      }
+    },
+    "CustomModel": "Blocks/wire/power/XD/Wire_XD_2o_Power.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "BlockTextures/wire_new_ch_2.png"
+      }
+    ],
+    "BlockEntity": {
+      "Components": {
+        "PowerConnectable": {},
+        "PowerNetIds": {},
+        "PowerWire": {}
+      }
+    },
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Group": "Wire",
+    "Flags": {},
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
+    "BlockParticleSetId": "Stone",
+    "Textures": [
+      {
+        "Sides": "BlockTextures/wire.png",
+        "UpDown": "BlockTextures/wire.png",
+        "Weight": 5
+      }
+    ],
+    "ParticleColor": "#615d44",
+    "BlockSoundSetId": "Stone"
+  },
+  "ResourceTypes": [
+    {
+      "Id": "Rock"
+    },
+    {
+      "Id": "Rock_Stone"
+    }
+  ],
+  "Tags": {
+    "Type": [
+      "Redstone"
+    ],
+    "Family": [
+      "Wire"
+    ],
+    "WireVariant": [
+      "Wire_XD_2o_Power_Ch2"
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Stone"
+}
