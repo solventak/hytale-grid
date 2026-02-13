@@ -39,7 +39,9 @@
       "Components": {
         "PowerConnectable": {},
         "PowerNetIds": {},
-        "PowerWire": {}
+        "PowerWire": {
+          "Channel": 3
+        }
       }
     },
     "Material": "Solid",
