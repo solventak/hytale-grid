@@ -76,10 +76,9 @@ fun globalPosFromLocal(info: BlockModule.BlockStateInfo, cmdBuf: CommandBuffer<C
  */
 fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Set<Vector3i> {
     val powerSources = mutableSetOf<Vector3i>()
-    val visited = mutableSetOf<Pair<Vector3i, Int>>() // Track (pos, face) to avoid cycles
+    val visited = mutableSetOf<Pair<Vector3i, Int>>()
     val bfsQueue = ArrayDeque<Pair<Vector3i, Int>>()
     
-    // Start BFS from all connectable faces of the starting position
     val startConn = worldAccess.getComponent(startPos, ExamplePlugin.powerConnectableComponentType) ?: return powerSources
     for (face in 0..5) {
         if (startConn.facesMask and (1 shl face) != 0) {
@@ -89,17 +88,15 @@ fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Se
     
     while (bfsQueue.isNotEmpty()) {
         val (pos, face) = bfsQueue.removeFirst()
-        if (!visited.add(Pair(pos, face))) continue // Skip if already visited
+        if (!visited.add(Pair(pos, face))) continue
         
         val conn = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) ?: continue
         
-        // Check if this block is a PowerSource
         val powerSource = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType)
         if (powerSource != null) {
             powerSources.add(pos)
         }
         
-        // For MUX blocks, use conduction mask instead of static facesMask
         val muxCheck = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType)
         val effectiveMask = if (muxCheck != null && muxCheck.isComplete && !muxCheck.isDisconnected) {
             getMuxConductionMask(pos, muxCheck, worldAccess)
@@ -108,7 +105,6 @@ fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Se
         }
         if (effectiveMask and (1 shl face) == 0) continue
         
-        // Internal connectivity: PowerWire bridges all connectable faces
         val isWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) != null
         if (isWire) {
             for (face2 in 0..5) {
@@ -118,7 +114,6 @@ fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Se
             }
         }
         
-        // Internal connectivity: Enabled relay star-connects all conduction (non-control) faces
         val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType)
         if (relay != null && relay.enabled) {
             val controlMask = getControlFaces(pos, worldAccess)
@@ -135,7 +130,6 @@ fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Se
             }
         }
         
-        // Internal connectivity: Complete MUX conducts through selected input to output
         val mux = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType)
         if (mux != null && mux.isComplete && !mux.isDisconnected) {
             val conductionMask = getMuxConductionMask(pos, mux, worldAccess)
@@ -148,7 +142,6 @@ fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Se
             }
         }
         
-        // External connectivity: spread to neighboring blocks
         val (neighborPos, oppositeFace) = neighborOfFace(pos, face)
         val neighborConn = worldAccess.getComponent(neighborPos, ExamplePlugin.powerConnectableComponentType)
         if (neighborConn != null) {
@@ -175,9 +168,8 @@ fun scanNetworkForPowerSources(startPos: Vector3i, worldAccess: WorldAccess): Se
  * - The block has PowerConnectable or InputPort components
  * 
  * Responsibilities:
- * 1. **PowerSource validation**: If block is a PowerSource, scans the network for conflicting drivers
- *    - If conflict found → destroys the block (prevents short circuits)
- *    - If no conflict → allows placement
+ * 1. **Short circuit prevention**: Validates PowerSource and connectable block placement
+ *    - Rejects placement if it would create a short circuit (ONE + ZERO on same net)
  * 
  * 2. **InputPort validation**: If block is an InputPort, scans neighbors for PowerSource/Relay
  *    - If no valid driver found → destroys the block
@@ -212,22 +204,19 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         val world = store.externalData.world
         val worldAccess: WorldAccess = HytaleWorldAccess(world)
 
-        // If this block is a Lever, initialize PowerSource driveState BEFORE validation
+        // Initialize Lever driveState before validation (if this is a Lever)
         val lever = cmdBuf.getComponent(ref, ExamplePlugin.leverComponentType)
         val powerSource = cmdBuf.getComponent(ref, ExamplePlugin.powerSourceComponentType)
         if (lever != null && powerSource != null) {
-            // Lever defaults to isOn=false, so set PowerSource to ONE initially (inverted)
             powerSource.driveState = if (lever.isOn) State4.ZERO else State4.ONE
             powerSource.lastDriveState = powerSource.driveState
         }
 
-        // If this block is a PowerSource, validate that it won't create a short circuit
+        // Short circuit prevention: Validate PowerSource placement
         if (powerSource != null) {
             val existingSources = scanNetworkForPowerSources(pos, worldAccess)
-            
-            // Check for conflicting drive states
             for (existingPos in existingSources) {
-                if (existingPos == pos) continue // Skip self
+                if (existingPos == pos) continue
                 val existingSource = worldAccess.getComponent(existingPos, ExamplePlugin.powerSourceComponentType)
                 if (existingSource != null && existingSource.driveState != powerSource.driveState) {
                     world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
@@ -236,13 +225,12 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
             }
         }
 
-        // If this block is PowerConnectable (wire, relay, etc.), validate that it won't bridge conflicting networks
-        if (hasPowerConnectable && powerSource == null) { // Skip if already validated as PowerSource
+        // Short circuit prevention: Validate connectable block (wire/relay/MUX) placement
+        if (hasPowerConnectable && powerSource == null) {
             val conn = cmdBuf.getComponent(ref, ExamplePlugin.powerConnectableComponentType)
             if (conn != null) {
                 val allSourceStates = mutableSetOf<State4>()
                 
-                // Check each connectable face - scan the neighbor network for PowerSources
                 for (face in 0..5) {
                     if (conn.facesMask and (1 shl face) == 0) continue
                     
@@ -250,7 +238,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                     val neighborConn = worldAccess.getComponent(neighborPos, ExamplePlugin.powerConnectableComponentType)
                     if (neighborConn == null) continue
                     
-                    // Check if neighbor face is connectable
                     val neighborMux = worldAccess.getComponent(neighborPos, ExamplePlugin.mux2PartComponentType)
                     val neighborEffectiveMask = if (neighborMux != null && neighborMux.isComplete && !neighborMux.isDisconnected) {
                         getMuxConductionMask(neighborPos, neighborMux, worldAccess)
@@ -259,7 +246,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                     }
                     if (neighborEffectiveMask and (1 shl oppositeFace) == 0) continue
                     
-                    // Scan this neighbor's network for PowerSources
                     val sourcesInNeighborNetwork = scanNetworkForPowerSources(neighborPos, worldAccess)
                     for (sourcePos in sourcesInNeighborNetwork) {
                         val source = worldAccess.getComponent(sourcePos, ExamplePlugin.powerSourceComponentType)
@@ -269,7 +255,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                     }
                 }
                 
-                // Check if we're bridging conflicting networks
                 if (State4.ONE in allSourceStates && State4.ZERO in allSourceStates) {
                     world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
                     return
