@@ -230,7 +230,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                 if (existingPos == pos) continue // Skip self
                 val existingSource = worldAccess.getComponent(existingPos, ExamplePlugin.powerSourceComponentType)
                 if (existingSource != null && existingSource.driveState != powerSource.driveState) {
-                    println("[PowerBlockAddedSystem] PowerSource at $pos conflicts with existing source at $existingPos (${existingSource.driveState} vs ${powerSource.driveState}), destroying")
                     world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
                     return
                 }
@@ -272,7 +271,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                 
                 // Check if we're bridging conflicting networks
                 if (State4.ONE in allSourceStates && State4.ZERO in allSourceStates) {
-                    println("[PowerBlockAddedSystem] Connectable block at $pos would bridge conflicting networks (ONE + ZERO), destroying")
                     world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
                     return
                 }
