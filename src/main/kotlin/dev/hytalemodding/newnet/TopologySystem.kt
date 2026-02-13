@@ -627,6 +627,16 @@ fun computeInverterDrive(sourcePos: Vector3i, worldAccess: WorldAccess, queue: S
 fun evaluateSources(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
         val source = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: continue
+        
+        // Skip inverter evaluation for Lever blocks - they're manually controlled
+        val lever = worldAccess.getComponent(pos, ExamplePlugin.leverComponentType)
+        if (lever != null) {
+            // Lever state was already set by LeverInteractionSystem, don't overwrite
+            source.lastDriveState = source.driveState
+            println("[evaluateSources] Lever at $pos: drive=${source.driveState} (manual control)")
+            continue
+        }
+        
         source.lastDriveState = source.driveState
         source.driveState = computeInverterDrive(pos, worldAccess, queue)
         println("[evaluateSources] Source at $pos: drive=${source.driveState} (was ${source.lastDriveState})")
@@ -819,6 +829,26 @@ fun updateDriverVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, qu
         val newState = if (source.driveState == State4.ONE) "On" else "default"
         if (setVisualState(pos, worldAccess, queue, newState)) {
             println("[updateDriverVisuals] PowerSource at $pos: driveState=${source.driveState}, state=$newState")
+        }
+    }
+}
+
+/**
+ * Updates visual state for all Lever blocks in the dirty set.
+ * 
+ * A Lever's visual reflects its toggle state. Visual is "On" when toggled on,
+ * "default" when toggled off.
+ *
+ * @param dirtyBlocks Blocks to check for Lever components
+ * @param worldAccess The world access interface
+ * @param queue State queue for marking visual dirty positions
+ */
+fun updateLeverVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
+    for (pos in dirtyBlocks) {
+        val lever = worldAccess.getComponent(pos, ExamplePlugin.leverComponentType) ?: continue
+        val newState = if (lever.isOn) "On" else "default"
+        if (setVisualState(pos, worldAccess, queue, newState)) {
+            println("[updateLeverVisuals] Lever at $pos: isOn=${lever.isOn}, state=$newState")
         }
     }
 }
@@ -1141,6 +1171,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
         updateLamps(allDirtyBlocks, worldAccess, changesQueue)
         updateRelayVisuals(allDirtyBlocks, worldAccess, changesQueue)
         updateDriverVisuals(allDirtyBlocks, worldAccess, changesQueue)
+        updateLeverVisuals(allDirtyBlocks, worldAccess, changesQueue)
         updateInputPortVisuals(allDirtyBlocks, worldAccess, changesQueue)
         updateWireVisuals(allDirtyBlocks, worldAccess, changesQueue)
         updateMuxVisuals(allDirtyBlocks, worldAccess, changesQueue)

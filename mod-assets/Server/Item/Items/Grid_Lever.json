@@ -1,0 +1,97 @@
+{
+  "Icon": "Icons/ItemsGenerated/white_off.png",
+  "IconProperties": {
+    "Scale": 0.58823,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  },
+  "Categories": [
+    "Furniture.Furniture"
+  ],
+  "MaxStack": 100,
+  "Recipe": {
+    "Input": [
+      {
+        "ItemId": "Soil_Dirt"
+      }
+    ],
+    "Output": [
+      {
+        "ItemId": "Grid_Lever"
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Id": "Fieldcraft",
+        "Type": "Crafting",
+        "Categories": [
+          "Tools"
+        ]
+      }
+    ]
+  },
+  "PlayerAnimationsId": "Block",
+  "Set": "Example_Block",
+  "BlockType": {
+    "CustomModel": "Blocks/non_wire.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "BlockTextures/white_off.png"
+      }
+    ],
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Group": "Stone",
+    "Interactions": {
+      "Use": {
+        "Interactions": []
+      }
+    },
+    "BlockEntity": {
+      "Components": {
+        "PowerConnectable": {},
+        "PowerNetIds": {},
+        "PowerSource": {},
+        "Lever": {},
+        "VisualState": {}
+      }
+    },
+    "State": {
+      "Definitions": {
+        "On": {
+          "CustomModelTexture": [
+            {
+              "Texture": "BlockTextures/white_on.png"
+            }
+          ]
+        }
+      }
+    },
+    "InteractionHint": "server.interactionHints.toggle",
+    "Flags": {},
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
+    "BlockParticleSetId": "Stone",
+    "ParticleColor": "#ffffff",
+    "BlockSoundSetId": "Stone"
+  },
+  "ResourceTypes": [
+    { "Id": "Rock" },
+    { "Id": "Rock_Stone" }
+  ],
+  "Tags": {
+    "Type": ["Redstone"],
+    "Family": ["Source"]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Stone"
+}
