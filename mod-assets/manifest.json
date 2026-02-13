@@ -1,10 +1,10 @@
 {
   "Group": "alexkennedy",
   "Name": "Grid",
-  "Version": "${version}",
+  "Version": "0.1.0",
   "Description": "4-State Digital Logic Foundation Mod",
-  "Authors": ["Alex Kennedy"],
-  "Website": "https://github.com/YOUR_USERNAME/hytale-grid",
+  "Authors": [],
+  "Website": "https://github.com/solventak/hytale-grid",
   "Dependencies": {},
   "OptionalDependencies": {},
   "LoadBefore": {},

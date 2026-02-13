@@ -42,8 +42,19 @@ fun tryPairMux(pos: Vector3i, mux: Mux2Part, worldAccess: WorldAccess): Boolean 
         val neighborMux = worldAccess.getComponent(npos, ExamplePlugin.mux2PartComponentType)
             ?: continue
 
+        // Special case: if neighbor is already paired TO THIS POSITION, sync up with it
+        // This handles world load where blocks may load in any order
+        if (neighborMux.isComplete && neighborMux.pairedPos == pos) {
+            mux.pairedPos = npos
+            mux.pairFace = face
+            mux.isComplete = true
+            mux.isDisconnected = neighborMux.isDisconnected
+            println("[Mux2Placement] MUX at $pos synced with existing pair at $npos (world load recovery)")
+            return true
+        }
+
         if (neighborMux.isComplete) {
-            // Neighbor is already in a complete pair — can't attach to it
+            // Neighbor is already in a complete pair with someone else — can't attach to it
             println("[Mux2Placement] MUX at $pos can't pair: neighbor at $npos already complete")
             continue
         }

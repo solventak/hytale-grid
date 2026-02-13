@@ -27,6 +27,6 @@ class PeriodicLogSystem : EntityTickingSystem<EntityStore>() {
     }
 
     override fun getQuery(): Query<EntityStore> {
-        return Query.any()
+        return Query.any<EntityStore>()
     }
 }
