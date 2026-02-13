@@ -98,7 +98,6 @@ fun evaluateMuxSelect(
         State4.HIGH_Z
     }
 
-    println("[MUX-S] probe at $probePos face=$probeFace netId=$netId value=$netValue (IP at $npos, driverSide=${inputPort.driverSideFace})")
 
     return when (netValue) {
         State4.ZERO -> Triple(0, false, false)      // S=0 → select A
@@ -184,7 +183,6 @@ fun evaluateAllMuxControls(
         val routingChanged = (mux.selectedInput != mux.lastSelectedInput) ||
                 (mux.isDisconnected != mux.lastIsDisconnected)
         if (routingChanged) {
-            println("[Mux2Control] MUX at $pos/$pairedPos routing changed: select=$selectedInput, disconnected=$isDisconnected, fault=$controlFault")
             anyToggled = true
         }
     }
