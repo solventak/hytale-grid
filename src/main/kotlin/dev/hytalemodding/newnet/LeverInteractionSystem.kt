@@ -47,7 +47,6 @@ class LeverInteractionSystem : EntityEventSystem<EntityStore, UseBlockEvent.Post
 
         // Toggle the lever state
         lever.isOn = !lever.isOn
-        println("[LeverInteractionSystem] Toggled lever at $pos to ${if (lever.isOn) "ON" else "OFF"}")
 
         // Update PowerSource driveState based on new toggle state
         // OFF → ONE, ON → ZERO (inverted because PowerSource is an inverting gate)
@@ -61,7 +60,6 @@ class LeverInteractionSystem : EntityEventSystem<EntityStore, UseBlockEvent.Post
         // Mark visual state dirty for VisualStateSystem to update appearance
         queue.visualDirtyPositions.add(pos)
         
-        println("[LeverInteractionSystem] Queued topology update and visual refresh for $pos")
     }
 
     override fun getQuery(): Query<EntityStore> = Query.and(Player.getComponentType())
