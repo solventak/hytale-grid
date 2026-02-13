@@ -52,9 +52,13 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
         val currentBlockId = currentBlockType.id ?: continue
         if (!isWireBlock(currentBlockId)) continue
 
+        println("[VisualState] Wire at $pos: currentBlock=$currentBlockId, channel=${hasPowerWire.channel}")
+
         // Compute connections and look up target variant
         val connections = getConnections(world, pos)
         val result = WireLookupTable.lookup(connections)
+        
+        println("[VisualState]   Connections: U=${connections.up} D=${connections.down} N=${connections.north} E=${connections.east} S=${connections.south} W=${connections.west}")
         
         // Determine wire type suffix based on channel
         val wireType = when (hasPowerWire.channel) {
@@ -67,16 +71,22 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
         val targetBlockTypeId = result.getBlockTypeId(wireType)
         val targetRotation = result.yawRotation
 
+        println("[VisualState]   WireType=$wireType, targetBlock=$targetBlockTypeId")
+
         // Check if we already have the correct variant
         val currentBase = currentBlockId.removePrefix("*")
-        if (currentBase == targetBlockTypeId) continue
+        if (currentBase == targetBlockTypeId) {
+            println("[VisualState]   Already correct variant, skipping")
+            continue
+        }
 
         val blockId = BlockType.getAssetMap().getIndex(targetBlockTypeId)
         val blockType = BlockType.getAssetMap().getAsset(blockId) ?: continue
 
-
         // Save channel value before setBlock destroys the block entity
         val originalChannel = hasPowerWire.channel
+        
+        println("[VisualState]   Swapping: $currentBase -> $targetBlockTypeId (channel=$originalChannel)")
         
         // Mark/clear must be inside world.execute since setBlock triggers RefSystem synchronously
         world.execute {
@@ -88,7 +98,11 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
                 // Restore channel value (setBlock creates new block entity with default channel=1)
                 val newPowerWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType)
                 if (newPowerWire != null) {
+                    println("[VisualState]   Before restore: newChannel=${newPowerWire.channel}")
                     newPowerWire.channel = originalChannel
+                    println("[VisualState]   After restore: newChannel=${newPowerWire.channel}")
+                } else {
+                    println("[VisualState]   ERROR: Could not get PowerWire component after setBlock!")
                 }
                 
                 // Preserve powered visual state if the block had one
