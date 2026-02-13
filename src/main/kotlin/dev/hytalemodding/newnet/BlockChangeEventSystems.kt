@@ -209,11 +209,12 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         // Skip if this is a wire shape swap (not a real placement)
         if (WireVisualUpdateTracker.isUpdating(pos)) return
 
+        val world = store.externalData.world
+        val worldAccess: WorldAccess = HytaleWorldAccess(world)
+
         // If this block is a PowerSource, validate that it won't create a short circuit
         val powerSource = cmdBuf.getComponent(ref, ExamplePlugin.powerSourceComponentType)
         if (powerSource != null) {
-            val world = store.externalData.world
-            val worldAccess: WorldAccess = HytaleWorldAccess(world)
             val existingSources = scanNetworkForPowerSources(pos, worldAccess)
             
             // Check for conflicting drive states
@@ -228,10 +229,50 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
             }
         }
 
+        // If this block is PowerConnectable (wire, relay, etc.), validate that it won't bridge conflicting networks
+        if (hasPowerConnectable && powerSource == null) { // Skip if already validated as PowerSource
+            val conn = cmdBuf.getComponent(ref, ExamplePlugin.powerConnectableComponentType)
+            if (conn != null) {
+                val allSourceStates = mutableSetOf<State4>()
+                
+                // Check each connectable face - scan the neighbor network for PowerSources
+                for (face in 0..5) {
+                    if (conn.facesMask and (1 shl face) == 0) continue
+                    
+                    val (neighborPos, oppositeFace) = neighborOfFace(pos, face)
+                    val neighborConn = worldAccess.getComponent(neighborPos, ExamplePlugin.powerConnectableComponentType)
+                    if (neighborConn == null) continue
+                    
+                    // Check if neighbor face is connectable
+                    val neighborMux = worldAccess.getComponent(neighborPos, ExamplePlugin.mux2PartComponentType)
+                    val neighborEffectiveMask = if (neighborMux != null && neighborMux.isComplete && !neighborMux.isDisconnected) {
+                        getMuxConductionMask(neighborPos, neighborMux, worldAccess)
+                    } else {
+                        neighborConn.facesMask
+                    }
+                    if (neighborEffectiveMask and (1 shl oppositeFace) == 0) continue
+                    
+                    // Scan this neighbor's network for PowerSources
+                    val sourcesInNeighborNetwork = scanNetworkForPowerSources(neighborPos, worldAccess)
+                    for (sourcePos in sourcesInNeighborNetwork) {
+                        val source = worldAccess.getComponent(sourcePos, ExamplePlugin.powerSourceComponentType)
+                        if (source != null) {
+                            allSourceStates.add(source.driveState)
+                        }
+                    }
+                }
+                
+                // Check if we're bridging conflicting networks
+                if (State4.ONE in allSourceStates && State4.ZERO in allSourceStates) {
+                    println("[PowerBlockAddedSystem] Connectable block at $pos would bridge conflicting networks (ONE + ZERO), destroying")
+                    world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
+                    return
+                }
+            }
+        }
+
         // If this block has an InputPort component, validate and configure its driverSideFace
         if (inputPort != null) {
-            val world = store.externalData.world
-            val worldAccess: WorldAccess = HytaleWorldAccess(world)
             var foundDriverFace: Int? = null
             for (face in 0..5) {
                 val (npos, _) = neighborOfFace(pos, face)
@@ -253,8 +294,6 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
         // If this block is a Mux2Part, handle pairing logic
         val mux = cmdBuf.getComponent(ref, ExamplePlugin.mux2PartComponentType)
         if (mux != null) {
-            val world = store.externalData.world
-            val worldAccess: WorldAccess = HytaleWorldAccess(world)
             tryPairMux(pos, mux, worldAccess)
             
             // Note: We've removed the immediate validation/destruction logic that was here.
