@@ -55,7 +55,16 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
         // Compute connections and look up target variant
         val connections = getConnections(world, pos)
         val result = WireLookupTable.lookup(connections)
-        val targetBlockTypeId = result.getBlockTypeId("Power")
+        
+        // Determine wire type suffix based on channel
+        val wireType = when (hasPowerWire.channel) {
+            2 -> "Power_Ch2"
+            3 -> "Power_Ch3"
+            4 -> "Power_Ch4"
+            else -> "Power" // Default to channel 1
+        }
+        
+        val targetBlockTypeId = result.getBlockTypeId(wireType)
         val targetRotation = result.yawRotation
 
         // Check if we already have the correct variant
