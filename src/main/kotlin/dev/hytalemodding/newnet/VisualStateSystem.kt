@@ -54,8 +54,8 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
 
         println("[VisualState] Wire at $pos: currentBlock=$currentBlockId, channel=${hasPowerWire.channel}")
 
-        // Compute connections and look up target variant
-        val connections = getConnections(world, pos)
+        // Compute connections and look up target variant (only connects to same-channel wires)
+        val connections = getConnections(world, pos, hasPowerWire.channel)
         val result = WireLookupTable.lookup(connections)
         
         println("[VisualState]   Connections: U=${connections.up} D=${connections.down} N=${connections.north} E=${connections.east} S=${connections.south} W=${connections.west}")
