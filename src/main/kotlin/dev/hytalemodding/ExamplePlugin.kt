@@ -26,6 +26,7 @@ import java.util.logging.Level
  * - **Lamp**: Power consumer blocks (light up when powered)
  * - **Relay**: Controlled switches (alter topology based on control signals)
  * - **InputPort**: Network probe blocks (read net state for relay/source control)
+ * - **Lever**: Interactive toggle blocks (player-controlled power sources)
  * - **VisualState**: Generic visual state component
  * - **Mux2Part**: 2-to-1 multiplexer component
  * 
@@ -51,69 +52,52 @@ class ExamplePlugin(init: JavaPluginInit) : JavaPlugin(init) {
         lateinit var relayComponentType: ComponentType<ChunkStore, Relay>
         lateinit var visualStateComponentType: ComponentType<ChunkStore, VisualState>
         lateinit var mux2PartComponentType: ComponentType<ChunkStore, Mux2Part>
+        lateinit var leverComponentType: ComponentType<ChunkStore, Lever>
     }
 
     override fun setup() {
-        logger.at(Level.INFO).log("[Grid] setup() called - beginning initialization")
+        logger.at(Level.INFO).log("[ExamplePlugin] setup() called - beginning initialization")
 
-        // Register components
-        powerConnectableComponentType = this.chunkStoreRegistry.registerComponent(
-            PowerConnectable::class.java, "PowerConnectable", PowerConnectable.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] PowerConnectable registered")
+//        this.reactiveChunkComponentType = this.chunkStoreRegistry.registerComponent(ReactiveChunk::class.java, "ReactiveChunk", ReactiveChunk.CODEC)
+//        lampComponentType = this.chunkStoreRegistry.registerComponent(Lamp::class.java, "Lamp", Lamp.CODEC)
+//        logger.at(Level.INFO).log("[ExamplePlugin] ReactiveChunk component registered")
 
-        powerNetIdsComponentType = this.chunkStoreRegistry.registerComponent(
-            PowerNetIds::class.java, "PowerNetIds", PowerNetIds.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] PowerNetIds registered")
+//        this.chunkStoreRegistry.registerSystem(ReactiveBlockInteractSystem(this.reactiveChunkComponentType))
+        powerConnectableComponentType = this.chunkStoreRegistry.registerComponent(PowerConnectable::class.java, "PowerConnectable", PowerConnectable.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] PowerConnectable registered")
+        powerNetIdsComponentType = this.chunkStoreRegistry.registerComponent(PowerNetIds::class.java, "PowerNetIds", PowerNetIds.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] PowerNetIds registered")
+        powerSourceComponentType = this.chunkStoreRegistry.registerComponent(PowerSource::class.java, "PowerSource", PowerSource.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] PowerSource registered")
+        powerWireComponentType = this.chunkStoreRegistry.registerComponent(PowerWire::class.java, "PowerWire", PowerWire.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] PowerWire registered")
+        lampComponentType = this.chunkStoreRegistry.registerComponent(Lamp::class.java, "Lamp", Lamp.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] Lamp registered")
+        inputPortComponentType = this.chunkStoreRegistry.registerComponent(InputPort::class.java, "InputPort", InputPort.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] InputPort registered")
+        relayComponentType = this.chunkStoreRegistry.registerComponent(Relay::class.java, "Relay", Relay.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] Relay registered")
+        visualStateComponentType = this.chunkStoreRegistry.registerComponent(VisualState::class.java, "VisualState", VisualState.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] VisualState registered")
+        mux2PartComponentType = this.chunkStoreRegistry.registerComponent(Mux2Part::class.java, "Mux2Part", Mux2Part.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] Mux2Part registered")
+        leverComponentType = this.chunkStoreRegistry.registerComponent(Lever::class.java, "Lever", Lever.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] Lever registered")
 
-        powerSourceComponentType = this.chunkStoreRegistry.registerComponent(
-            PowerSource::class.java, "PowerSource", PowerSource.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] PowerSource registered")
-
-        powerWireComponentType = this.chunkStoreRegistry.registerComponent(
-            PowerWire::class.java, "PowerWire", PowerWire.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] PowerWire registered")
-
-        lampComponentType = this.chunkStoreRegistry.registerComponent(
-            Lamp::class.java, "Lamp", Lamp.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] Lamp registered")
-
-        inputPortComponentType = this.chunkStoreRegistry.registerComponent(
-            InputPort::class.java, "InputPort", InputPort.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] InputPort registered")
-
-        relayComponentType = this.chunkStoreRegistry.registerComponent(
-            Relay::class.java, "Relay", Relay.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] Relay registered")
-
-        visualStateComponentType = this.chunkStoreRegistry.registerComponent(
-            VisualState::class.java, "VisualState", VisualState.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] VisualState registered")
-
-        mux2PartComponentType = this.chunkStoreRegistry.registerComponent(
-            Mux2Part::class.java, "Mux2Part", Mux2Part.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] Mux2Part registered")
-
-        // Register state change queue resource
-        stateChangeQueueType = this.chunkStoreRegistry.registerResource(
-            StateChangeEventQueue::class.java, "StateChangeEventQueue", StateChangeEventQueue.CODEC
-        )
-        logger.at(Level.INFO).log("[Grid] StateChangeEventQueue resource registered")
+        stateChangeQueueType = this.chunkStoreRegistry.registerResource(StateChangeEventQueue::class.java, "StateChangeEventQueue",
+            StateChangeEventQueue.CODEC)
+        logger.at(Level.INFO).log("[ExamplePlugin] StateChangeEventQueue resource registered")
 
         // Register event systems for block place/break
         this.chunkStoreRegistry.registerSystem(PowerBlockAddedSystem())
         logger.at(Level.INFO).log("[Grid] PowerBlockAddedSystem registered")
 
         this.entityStoreRegistry.registerSystem(PowerBlockBreakEvent())
-        logger.at(Level.INFO).log("[Grid] PowerBlockBreakEvent registered")
+        logger.at(Level.INFO).log("[ExamplePlugin] PowerBlockBreakEvent registered")
+        
+        // Register lever interaction system
+        this.entityStoreRegistry.registerSystem(LeverInteractionSystem())
+        logger.at(Level.INFO).log("[ExamplePlugin] LeverInteractionSystem registered")
 
         // Register topology system
         this.chunkStoreRegistry.registerSystem(TopologySystem())

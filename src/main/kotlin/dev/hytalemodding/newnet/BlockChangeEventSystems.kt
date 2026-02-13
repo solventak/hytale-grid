@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore
 import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.newnet.shared.State4
 
 /**
  * Thread-safe tracker for wire blocks currently undergoing visual shape updates.
@@ -137,6 +138,18 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                 println("[PowerBlockAddedSystem] Incomplete MUX at $pos has invalid neighbors, destroying")
                 world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
                 return
+            }
+        }
+
+        // If this block is a Lever, initialize PowerSource driveState based on Lever.isOn
+        val lever = cmdBuf.getComponent(ref, ExamplePlugin.leverComponentType)
+        if (lever != null) {
+            val powerSource = cmdBuf.getComponent(ref, ExamplePlugin.powerSourceComponentType)
+            if (powerSource != null) {
+                // Lever defaults to isOn=false, so set PowerSource to ZERO initially
+                powerSource.driveState = if (lever.isOn) State4.ONE else State4.ZERO
+                powerSource.lastDriveState = powerSource.driveState
+                println("[PowerBlockAddedSystem] Lever at $pos initialized: isOn=${lever.isOn}, driveState=${powerSource.driveState}")
             }
         }
 
