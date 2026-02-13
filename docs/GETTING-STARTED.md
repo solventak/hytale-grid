@@ -18,11 +18,6 @@ Grid is designed to be a **platform mod** - you build on top of it to create tec
 
 ## Installation
 
-### For Players
-1. Download `Grid-vX.X.X.jar` from [Releases](https://github.com/YOUR_USERNAME/hytale-grid/releases)
-2. Place in your Hytale `mods/` folder
-3. Launch Hytale
-
 ### For Modders
 Add Grid as a dependency in your `build.gradle.kts`:
 
@@ -34,98 +29,7 @@ dependencies {
 
 ---
 
-## Using Grid in Your Mod
-
-### 1. Access Grid Components
-
-Grid exposes component types through `ExamplePlugin` companion object:
-
-```kotlin
-import dev.hytalemodding.ExamplePlugin
-import dev.hytalemodding.newnet.*
-
-// Access Grid components
-val powerSource = ExamplePlugin.powerSourceComponentType
-val powerWire = ExamplePlugin.powerWireComponentType
-val lamp = ExamplePlugin.lampComponentType
-val relay = ExamplePlugin.relayComponentType
-val inputPort = ExamplePlugin.inputPortComponentType
-```
-
-### 2. Read Network State
-
-To check if a block face is powered:
-
-```kotlin
-import com.hypixel.hytale.math.vector.Vector3i
-import dev.hytalemodding.ExamplePlugin
-import dev.hytalemodding.newnet.State4
-
-fun isBlockPowered(pos: Vector3i, face: Int, world: World): Boolean {
-    val queue = world.chunkStore.store.getResource(ExamplePlugin.stateChangeQueueType)
-    val netIds = world.chunkStore.store.getComponent(pos, ExamplePlugin.powerNetIdsComponentType)
-    
-    if (netIds == null) return false
-    
-    val netId = netIds.get(face)
-    val netValue = queue.powerNetValueCache[netId] ?: State4.ZERO
-    
-    return netValue == State4.ONE
-}
-```
-
-### 3. Create Powered Blocks
-
-Add Grid components to your blocks in their prefab JSON:
-
-```json
-{
-  "Prefab": [
-    {
-      "Component": "PowerConnectable",
-      "facesMask": 63
-    },
-    {
-      "Component": "PowerNetIds"
-    },
-    {
-      "Component": "VisualState",
-      "state": "default"
-    }
-  ]
-}
-```
-
-**facesMask:** Bitmask for connectable faces (bit N = face N)
-- `63` = `0b111111` = all 6 faces
-- `3` = `0b000011` = only UP and DOWN faces
-
-### 4. React to Power Changes
-
-Listen for topology changes in your own system:
-
-```kotlin
-class MyPoweredSystem : ChunkTickingSystem<ChunkStore>() {
-    override fun tick(
-        dt: Float,
-        index: Int,
-        chunk: ArchetypeChunk<ChunkStore>,
-        store: Store<ChunkStore>,
-        commandBuf: CommandBuffer<ChunkStore>
-    ) {
-        val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
-        
-        // Check if any of your blocks changed power state
-        for (event in queue.changes) {
-            // Handle power change at event.pos
-        }
-    }
-    
-    override fun getQuery(): Query<ChunkStore> {
-        return Query.and(ExamplePlugin.powerNetIdsComponentType, MyComponentType)
-    }
-}
-```
+> **Note:** Comprehensive API documentation for mod integration will be added when Grid is ready for external mod development. For now, refer to the source code and CLAUDE.md for implementation details.
 
 ---
 
@@ -283,12 +187,11 @@ fun getAllAdjacent(pos: Vector3i): List<Vector3i>
 
 - **CLAUDE.md** - Detailed architecture and code patterns
 - **TopologySystem.kt** - Core network evaluation algorithm
-- **Unit Tests** - Example usage (see `src/test/`)
 
 ---
 
 ## Support
 
-- **GitHub Issues:** [Report bugs](https://github.com/YOUR_USERNAME/hytale-grid/issues)
-- **GitHub Discussions:** [Ask questions](https://github.com/YOUR_USERNAME/hytale-grid/discussions)
+- **GitHub Issues:** [Report bugs](https://github.com/solventak/hytale-grid/issues)
+- **GitHub Discussions:** [Ask questions](https://github.com/solventak/hytale-grid/discussions)
 - **Discord:** Hytale Modding Discord (community channels)
