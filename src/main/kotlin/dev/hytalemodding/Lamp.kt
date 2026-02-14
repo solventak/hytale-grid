@@ -23,7 +23,7 @@
 //    }
 //
 //    fun getComponentType(): ComponentType<ChunkStore, Lamp> {
-//        return ExamplePlugin.lampComponentType
+//        return GridPlugin.lampComponentType
 //    }
 //
 //    override fun clone(): Component<ChunkStore> {
@@ -124,7 +124,7 @@
 //        val info = commandBuffer.getComponent(ref, BlockModule.BlockStateInfo.getComponentType())
 //            ?: return
 //
-//        commandBuffer.getComponent(ref, ExamplePlugin.lampComponentType) ?: return
+//        commandBuffer.getComponent(ref, GridPlugin.lampComponentType) ?: return
 //
 //        val x = ChunkUtil.xFromBlockInColumn(info.index)
 //        val y = ChunkUtil.yFromBlockInColumn(info.index)

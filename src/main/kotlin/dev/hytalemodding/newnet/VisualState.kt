@@ -4,7 +4,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec
 import com.hypixel.hytale.component.Component
 import com.hypixel.hytale.component.ComponentType
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 
 /**
  * Generic component for storing a block's desired visual interaction state.
@@ -46,7 +46,7 @@ class VisualState : Component<ChunkStore> {
     }
 
     fun getComponentType(): ComponentType<ChunkStore, VisualState> {
-        return ExamplePlugin.visualStateComponentType
+        return GridPlugin.visualStateComponentType
     }
 
     override fun clone(): Component<ChunkStore> {

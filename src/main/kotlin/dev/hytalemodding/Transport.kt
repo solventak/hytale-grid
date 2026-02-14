@@ -8,7 +8,7 @@ package dev.hytalemodding
 //    }
 //
 //    fun getComponentType(): ComponentType<ChunkStore, Transport> {
-//        return ExamplePlugin.transportComponentType
+//        return GridPlugin.transportComponentType
 //    }
 //
 //    override fun clone(): Component<ChunkStore> {

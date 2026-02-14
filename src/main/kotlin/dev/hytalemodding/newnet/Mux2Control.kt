@@ -2,7 +2,7 @@ package dev.hytalemodding.newnet
 
 import com.hypixel.hytale.math.vector.Vector3i
 
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 import dev.hytalemodding.newnet.shared.State4
 
 /**
@@ -26,7 +26,7 @@ fun findSelectFace(muxPos: Vector3i, pairFace: Int, worldAccess: WorldAccess): I
     // S must be on a narrow face (not a fat face, which is where A/B inputs go).
     val narrowFace = OPPOSITE_FACE[pairFace]
     val (npos, nface) = neighborOfFace(muxPos, narrowFace)
-    val inputPort = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+    val inputPort = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
         ?: return -1
     if (inputPort.driverSideFace == nface) {
         return narrowFace
@@ -56,7 +56,7 @@ fun identifyInputBlocks(
     // S is on muxPos's narrow face → muxPos is closer to S → muxPos has A
     // But we need to check which block actually has S
     val (sNeighborPos, sNeighborFace) = neighborOfFace(muxPos, sFace)
-    val inputPort = worldAccess.getComponent(sNeighborPos, ExamplePlugin.inputPortComponentType)
+    val inputPort = worldAccess.getComponent(sNeighborPos, GridPlugin.inputPortComponentType)
     return if (inputPort != null && inputPort.driverSideFace == sNeighborFace) {
         // S is on muxPos → muxPos is the A side
         Pair(muxPos, pairedPos)
@@ -84,13 +84,13 @@ fun evaluateMuxSelect(
     queue: StateChangeEventQueue
 ): Triple<Int, Boolean, Boolean> {
     val (npos, nface) = neighborOfFace(muxPos, sFace)
-    val inputPort = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+    val inputPort = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
         ?: return Triple(0, true, false) // No InputPort → disconnected
 
     // Probe: read the net on the InputPort's output face (opposite of driverSideFace)
     val outputFace = OPPOSITE_FACE[inputPort.driverSideFace]
     val (probePos, probeFace) = neighborOfFace(npos, outputFace)
-    val probeIds = worldAccess.getComponent(probePos, ExamplePlugin.powerNetIdsComponentType)
+    val probeIds = worldAccess.getComponent(probePos, GridPlugin.powerNetIdsComponentType)
     val netId = probeIds?.get(probeFace) ?: UNASSIGNED
     val netValue = if (netId != UNASSIGNED) {
         queue.powerNetValueCache[netId] ?: State4.HIGH_Z
@@ -138,14 +138,14 @@ fun evaluateAllMuxControls(
     for (pos in dirtyBlocks) {
         if (pos in processed) continue
         if (pos in excludePositions) continue
-        val mux = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType) ?: continue
+        val mux = worldAccess.getComponent(pos, GridPlugin.mux2PartComponentType) ?: continue
         if (!mux.isComplete) continue
 
         val pairedPos = mux.pairedPos ?: continue
         processed.add(pos)
         processed.add(pairedPos)
 
-        val pairedMux = worldAccess.getComponent(pairedPos, ExamplePlugin.mux2PartComponentType) ?: continue
+        val pairedMux = worldAccess.getComponent(pairedPos, GridPlugin.mux2PartComponentType) ?: continue
 
         // Find S on either block
         var sFace = findSelectFace(pos, mux.pairFace, worldAccess)
@@ -203,7 +203,7 @@ fun evaluateAllMuxControls(
 fun collectToggledMuxPositions(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess): MutableSet<Vector3i> {
     val toggled = mutableSetOf<Vector3i>()
     for (pos in dirtyBlocks) {
-        val mux = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType) ?: continue
+        val mux = worldAccess.getComponent(pos, GridPlugin.mux2PartComponentType) ?: continue
         if (mux.selectedInput != mux.lastSelectedInput || mux.isDisconnected != mux.lastIsDisconnected) {
             toggled.add(pos)
             mux.pairedPos?.let { toggled.add(it) }

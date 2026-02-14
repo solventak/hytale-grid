@@ -6,7 +6,7 @@ import com.hypixel.hytale.codec.KeyedCodec
 import com.hypixel.hytale.component.Component
 import com.hypixel.hytale.component.ComponentType
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 
 /**
  * Component marking a block as a manually-toggleable power source (lever).
@@ -52,7 +52,7 @@ class Lever : Component<ChunkStore> {
     }
 
     fun getComponentType(): ComponentType<ChunkStore, Lever> {
-        return ExamplePlugin.leverComponentType
+        return GridPlugin.leverComponentType
     }
 
     override fun clone(): Component<ChunkStore> {

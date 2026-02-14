@@ -69,10 +69,10 @@
 //
 //        println("[UseBlockStateChangeEvent] Interacted at ${pos}")
 //
-//        val relay = getComponentForGlobalXyz(world, pos, ExamplePlugin.relayComponentType)
+//        val relay = getComponentForGlobalXyz(world, pos, GridPlugin.relayComponentType)
 //
 //        if (relay != null) {
-//            val transmits = getComponentForGlobalXyz(world, pos, ExamplePlugin.transmitsComponentType) ?: return
+//            val transmits = getComponentForGlobalXyz(world, pos, GridPlugin.transmitsComponentType) ?: return
 //
 //            relay.normallyClosed = !relay.normallyClosed
 //            println("[UseBlockStateChangeEvent] Toggled relay normallyClosed to ${relay.normallyClosed}")
@@ -102,7 +102,7 @@
 //                }
 //            }
 //
-//            val queue = world.chunkStore.store.getResource(ExamplePlugin.stateChangeQueueType)
+//            val queue = world.chunkStore.store.getResource(GridPlugin.stateChangeQueueType)
 //            if (shouldConduct) {
 //                queue.pending.add(StateChangeEvent(pos, StateChangeType.PLACED_OR_UPDATED))
 //            } else {

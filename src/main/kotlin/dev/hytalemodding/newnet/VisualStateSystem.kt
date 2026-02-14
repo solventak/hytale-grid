@@ -11,7 +11,7 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType
 import com.hypixel.hytale.server.core.universe.world.World
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 import dev.hytalemodding.wire.WireLookupTable
 import dev.hytalemodding.wire.getConnections
 import dev.hytalemodding.wire.isWireBlock
@@ -40,7 +40,7 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
 
     for (pos in positionsToProcess) {
         // Only process positions that are actually wire blocks
-        val hasPowerWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) ?: continue
+        val hasPowerWire = worldAccess.getComponent(pos, GridPlugin.powerWireComponentType) ?: continue
 
         val chunkIndex = ChunkUtil.indexChunkFromBlock(pos.x, pos.z)
         val chunkRef = world.chunkStore.getChunkReference(chunkIndex) ?: continue
@@ -87,13 +87,13 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
                 chunk.setBlock(pos.x, pos.y, pos.z, blockId, blockType, targetRotation.ordinal, 0, 0)
 
                 // Restore channel value (setBlock creates new block entity with default channel=1)
-                val newPowerWire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType)
+                val newPowerWire = worldAccess.getComponent(pos, GridPlugin.powerWireComponentType)
                 if (newPowerWire != null) {
                     newPowerWire.channel = originalChannel
                 }
                 
                 // Preserve powered visual state if the block had one
-                val vs = worldAccess.getComponent(pos, ExamplePlugin.visualStateComponentType)
+                val vs = worldAccess.getComponent(pos, GridPlugin.visualStateComponentType)
                 if (vs != null && vs.state != "default") {
                     val newWorldChunk = world.chunkStore.store.getComponent(
                         world.chunkStore.getChunkReference(ChunkUtil.indexChunkFromBlock(pos.x, pos.z))!!,
@@ -138,7 +138,7 @@ private fun processWireShapeUpdates(queue: StateChangeEventQueue, world: World, 
 class VisualStateSystem : TickingSystem<ChunkStore>() {
 
     override fun tick(dt: Float, systemIndex: Int, store: Store<ChunkStore>) {
-        val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
+        val queue = store.getResource(GridPlugin.stateChangeQueueType)
         val world = store.externalData.world
         val worldAccess: WorldAccess = HytaleWorldAccess(world)
 
@@ -153,7 +153,7 @@ class VisualStateSystem : TickingSystem<ChunkStore>() {
         val mutations = mutableListOf<VisualMutation>()
 
         for (pos in dirtyPositions) {
-            val vs = worldAccess.getComponent(pos, ExamplePlugin.visualStateComponentType)
+            val vs = worldAccess.getComponent(pos, GridPlugin.visualStateComponentType)
                 ?: continue
             mutations.add(VisualMutation(pos, vs.state))
         }

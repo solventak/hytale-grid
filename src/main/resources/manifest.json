@@ -6,7 +6,7 @@
   "Authors": ["Alex Kennedy"],
   "Website": "https://github.com/solventak/hytale-grid",
   "ServerVersion": "0.1.0+",
-  "Main": "dev.hytalemodding.ExamplePlugin",
+  "Main": "dev.hytalemodding.GridPlugin",
   "Dependencies": {},
   "OptionalDependencies": {},
   "LoadBefore": {},

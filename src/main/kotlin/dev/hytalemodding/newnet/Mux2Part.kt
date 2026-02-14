@@ -5,7 +5,7 @@ import com.hypixel.hytale.component.Component
 import com.hypixel.hytale.component.ComponentType
 import com.hypixel.hytale.math.vector.Vector3i
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 
 /**
  * Component for one half of a 2:1 MUX multiblock.
@@ -101,7 +101,7 @@ class Mux2Part : Component<ChunkStore> {
     }
 
     fun getComponentType(): ComponentType<ChunkStore, Mux2Part> {
-        return ExamplePlugin.mux2PartComponentType
+        return GridPlugin.mux2PartComponentType
     }
 
     override fun clone(): Component<ChunkStore> {

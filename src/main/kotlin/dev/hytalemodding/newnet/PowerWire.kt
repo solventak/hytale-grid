@@ -6,7 +6,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec
 import com.hypixel.hytale.component.Component
 import com.hypixel.hytale.component.ComponentType
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 
 /**
  * Marker component indicating a block is a power wire.
@@ -44,7 +44,7 @@ class PowerWire(
     }
 
     fun getComponentType(): ComponentType<ChunkStore, PowerWire> {
-        return ExamplePlugin.powerWireComponentType
+        return GridPlugin.powerWireComponentType
     }
 
     override fun clone(): Component<ChunkStore> {

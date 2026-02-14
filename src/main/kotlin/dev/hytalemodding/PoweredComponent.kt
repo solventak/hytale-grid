@@ -29,10 +29,10 @@
 //    blockComponentChunk: BlockComponentChunk,
 //    cmdBuf: CommandBuffer<ChunkStore>
 //): List<Pair<Vector3i, Ref<ChunkStore>>> {
-//    val currentTransmitsNode = cmdBuf.getComponent(currentRef, ExamplePlugin.transmitsComponentType)
+//    val currentTransmitsNode = cmdBuf.getComponent(currentRef, GridPlugin.transmitsComponentType)
 //
 //    // Source blocks only propagate through Power, not Signal
-//    val isCurrentSource = cmdBuf.getComponent(currentRef, ExamplePlugin.powerSourceComponentType) != null
+//    val isCurrentSource = cmdBuf.getComponent(currentRef, GridPlugin.powerSourceComponentType) != null
 //    val effectiveCurrentTransmits = if (isCurrentSource && currentTransmitsNode != null) {
 //        currentTransmitsNode.transmits.filter { it == "Power" }.toSet()
 //    } else {
@@ -44,13 +44,13 @@
 //        val adjRef = blockComponentChunk.getEntityReference(adjBlockIndex) ?: return@mapNotNull null
 //
 //        // Must have ElectricalNode to be part of the network
-//        cmdBuf.getComponent(adjRef, ExamplePlugin.electricalNodeComponentType)
+//        cmdBuf.getComponent(adjRef, GridPlugin.electricalNodeComponentType)
 //            ?: return@mapNotNull null
 //
-//        val adjTransmitsNode = cmdBuf.getComponent(adjRef, ExamplePlugin.transmitsComponentType)
+//        val adjTransmitsNode = cmdBuf.getComponent(adjRef, GridPlugin.transmitsComponentType)
 //
 //        // Source blocks only propagate through Power, not Signal
-//        val isAdjSource = cmdBuf.getComponent(adjRef, ExamplePlugin.powerSourceComponentType) != null
+//        val isAdjSource = cmdBuf.getComponent(adjRef, GridPlugin.powerSourceComponentType) != null
 //        val effectiveAdjTransmits = if (isAdjSource && adjTransmitsNode != null) {
 //            adjTransmitsNode.transmits.filter { it == "Power" }.toSet()
 //        } else {
@@ -76,7 +76,7 @@
 //    }
 //
 //    fun getComponentType(): ComponentType<ChunkStore, ElectricalNode> {
-//        return ExamplePlugin.electricalNodeComponentType
+//        return GridPlugin.electricalNodeComponentType
 //    }
 //
 //    override fun clone(): Component<ChunkStore> {
@@ -98,7 +98,7 @@
 //    }
 //
 //    fun getComponentType(): ComponentType<ChunkStore, PowerSource> {
-//        return ExamplePlugin.powerSourceComponentType
+//        return GridPlugin.powerSourceComponentType
 //    }
 //
 //    override fun clone(): Component<ChunkStore> {
@@ -139,7 +139,7 @@
 //    }
 //
 //    fun getComponentType(): ComponentType<ChunkStore, Powerable> {
-//        return ExamplePlugin.powerableComponentType
+//        return GridPlugin.powerableComponentType
 //    }
 //
 //    override fun clone(): Component<ChunkStore> {
@@ -186,7 +186,7 @@
 //    }
 //
 //    fun getComponentType(): ComponentType<ChunkStore, Transmits> {
-//        return ExamplePlugin.transmitsComponentType
+//        return GridPlugin.transmitsComponentType
 //    }
 //
 //    override fun clone(): Component<ChunkStore> {
@@ -247,7 +247,7 @@
 ////        val blockRef = blockComponentChunk.getEntityReference(blockIndex)
 ////        if (blockRef == null) { println("[Render] FAIL: blockRef null at index $blockIndex"); return }
 ////
-////        val electricalNode = commandBuffer.getComponent(blockRef, ExamplePlugin.electricalNodeComponentType)
+////        val electricalNode = commandBuffer.getComponent(blockRef, GridPlugin.electricalNodeComponentType)
 ////        if (electricalNode?.onOffVisual != true) {
 ////            println("[Render] FAIL: onOffVisual=${electricalNode?.onOffVisual}"); return
 ////        }
@@ -291,16 +291,16 @@
 //
 //fun hasAdjacentPoweredSignal(world: World, pos: Vector3i): Boolean {
 //    for (adj in getAllAdjacent(pos)) {
-//        val node = getComponentForGlobalXyz(world, adj, ExamplePlugin.electricalNodeComponentType) ?: continue
+//        val node = getComponentForGlobalXyz(world, adj, GridPlugin.electricalNodeComponentType) ?: continue
 //        // SignalSense emits signal when powered (but has "Power" transmits, not "Signal")
-//        if (getComponentForGlobalXyz(world, adj, ExamplePlugin.signalSenseComponentType) != null) {
-//            val adjPowerable = getComponentForGlobalXyz(world, adj, ExamplePlugin.powerableComponentType)
+//        if (getComponentForGlobalXyz(world, adj, GridPlugin.signalSenseComponentType) != null) {
+//            val adjPowerable = getComponentForGlobalXyz(world, adj, GridPlugin.powerableComponentType)
 //            if (adjPowerable?.powered == true) return true
 //            continue
 //        }
-//        val transmits = getComponentForGlobalXyz(world, adj, ExamplePlugin.transmitsComponentType) ?: continue
+//        val transmits = getComponentForGlobalXyz(world, adj, GridPlugin.transmitsComponentType) ?: continue
 //        if (!transmits.transmits.contains("Signal")) continue
-//        val powerable = getComponentForGlobalXyz(world, adj, ExamplePlugin.powerableComponentType) ?: continue
+//        val powerable = getComponentForGlobalXyz(world, adj, GridPlugin.powerableComponentType) ?: continue
 //        if (powerable.powered) return true
 //    }
 //    return false
@@ -342,11 +342,11 @@
 //        }
 //
 //        // Reset power state
-//        val powerable = cmdBuf.getComponent(blockRef, ExamplePlugin.powerableComponentType)
+//        val powerable = cmdBuf.getComponent(blockRef, GridPlugin.powerableComponentType)
 //        if (powerable != null) {
 //            nodes.add(current)
 //            // Relay visual reflects conducting state, not powered state — skip visual update
-//            val isRelay = cmdBuf.getComponent(blockRef, ExamplePlugin.relayComponentType) != null
+//            val isRelay = cmdBuf.getComponent(blockRef, GridPlugin.relayComponentType) != null
 //            if (isRelay) {
 //                if (!powerable.constant) powerable.powered = false
 //            } else {
@@ -354,11 +354,11 @@
 //            }
 //        }
 //
-//        val transmits = cmdBuf.getComponent(blockRef, ExamplePlugin.transmitsComponentType)
+//        val transmits = cmdBuf.getComponent(blockRef, GridPlugin.transmitsComponentType)
 //        println("[BFS] pos=$current, powered=${powerable?.powered}, transmits=${transmits?.transmits}, onOffVisual=${powerable?.hasPoweredVisualState}")
 //
 //        // Check if this is a source (skip disabled sources)
-//        val powerSource = cmdBuf.getComponent(blockRef, ExamplePlugin.powerSourceComponentType)
+//        val powerSource = cmdBuf.getComponent(blockRef, GridPlugin.powerSourceComponentType)
 //        if (powerSource != null && !powerSource.disabled) {
 //            sources.add(current)
 //            println("[findSourcesAndReset] Found source at (${current.x}, ${current.y}, ${current.z})")
@@ -397,10 +397,10 @@
 //        val blockRef = blockComponentChunk.getEntityReference(blockIndex) ?: continue
 //
 //        // Set powered state
-//        val powered = cmdBuf.getComponent(blockRef, ExamplePlugin.powerableComponentType)
+//        val powered = cmdBuf.getComponent(blockRef, GridPlugin.powerableComponentType)
 //        if (powered != null) {
 //            // Relay visual reflects conducting state, not powered state — skip visual update
-//            val isRelay = cmdBuf.getComponent(blockRef, ExamplePlugin.relayComponentType) != null
+//            val isRelay = cmdBuf.getComponent(blockRef, GridPlugin.relayComponentType) != null
 //            if (isRelay) {
 //                powered.powered = true
 //            } else {
@@ -409,7 +409,7 @@
 //        }
 //        blocksTurnedOn.add(current)
 //
-//        val transmits = cmdBuf.getComponent(blockRef, ExamplePlugin.transmitsComponentType)
+//        val transmits = cmdBuf.getComponent(blockRef, GridPlugin.transmitsComponentType)
 //
 //        if (transmits?.transmits?.isNotEmpty() ?: false) {
 //            for ((adjacent, _) in getConnectableNeighbors(current, blockRef, blockComponentChunk, cmdBuf)) {
@@ -443,7 +443,7 @@
 //        cmdBuf: CommandBuffer<ChunkStore>
 //    ) {
 //        val info = cmdBuf.getComponent(ref, BlockModule.BlockStateInfo.getComponentType()) ?: return
-//        cmdBuf.getComponent(ref, ExamplePlugin.electricalNodeComponentType) ?: return
+//        cmdBuf.getComponent(ref, GridPlugin.electricalNodeComponentType) ?: return
 //
 //        // Get global position from BlockStateInfo
 //        val pos = globalPosFromLocal(info, cmdBuf) ?: return
@@ -454,7 +454,7 @@
 //            return
 //        }
 //
-//        val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
+//        val queue = store.getResource(GridPlugin.stateChangeQueueType)
 //        queue.pending.add(StateChangeEvent(pos, StateChangeType.PLACED_OR_UPDATED))
 //        println("[PowerableBlockAddedSystem] Queued PLACED at (${pos.x}, ${pos.y}, ${pos.z}), queue size: ${queue.pending.size}")
 //    }
@@ -470,7 +470,7 @@
 //
 //    override fun getQuery(): Query<ChunkStore> = Query.and(
 //        BlockModule.BlockStateInfo.getComponentType(),
-//        ExamplePlugin.electricalNodeComponentType
+//        GridPlugin.electricalNodeComponentType
 //    )
 //}
 //
@@ -487,9 +487,9 @@
 //
 //        // Only queue if block has Powerable component
 //        // Note: BreakBlockEvent fires before block is removed, so component should still exist
-//        val powerable = getComponentForGlobalXyz(world, pos, ExamplePlugin.electricalNodeComponentType)
+//        val powerable = getComponentForGlobalXyz(world, pos, GridPlugin.electricalNodeComponentType)
 //        if (powerable != null) {
-//            val queue = world.chunkStore.store.getResource(ExamplePlugin.stateChangeQueueType)
+//            val queue = world.chunkStore.store.getResource(GridPlugin.stateChangeQueueType)
 //            queue.pending.add(StateChangeEvent(pos, StateChangeType.DESTROYED))
 //            println("[BreakBlockStateChangeEvent] Queued DESTROYED at (${pos.x}, ${pos.y}, ${pos.z}), queue size: ${queue.pending.size}")
 //        }
@@ -500,7 +500,7 @@
 //
 //class StateChangeProcessor : TickingSystem<ChunkStore>() {
 //    override fun tick(dt: Float, systemIndex: Int, store: Store<ChunkStore>) {
-//        val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
+//        val queue = store.getResource(GridPlugin.stateChangeQueueType)
 //
 //        if (queue.pending.isNotEmpty()) println("[StateChangeProcessor] Processing ${queue.pending.size} queued events")
 //
@@ -534,7 +534,7 @@
 //        // Add its position to dirty sets so ElectricalNodeControlSystem
 //        // re-evaluates any adjacent signal/power-controlled blocks.
 //        if (event.changeType == StateChangeType.DESTROYED) {
-//            val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
+//            val queue = store.getResource(GridPlugin.stateChangeQueueType)
 //            queue.dirtySignalPositions.add(pos)
 //        }
 //
@@ -555,11 +555,11 @@
 //        for (node in resetResult.nonSourceNodes) {
 //            val bi = ChunkUtil.indexBlockInColumn(node.x and 31, node.y, node.z and 31)
 //            val br = blockComponentChunk.getEntityReference(bi) ?: continue
-//            if (cmdBuf.getComponent(br, ExamplePlugin.signalSenseComponentType) != null) {
+//            if (cmdBuf.getComponent(br, GridPlugin.signalSenseComponentType) != null) {
 //                for (adj in getAllAdjacent(node)) {
 //                    val adjBi = ChunkUtil.indexBlockInColumn(adj.x and 31, adj.y, adj.z and 31)
 //                    val adjBr = blockComponentChunk.getEntityReference(adjBi) ?: continue
-//                    val adjTransmits = cmdBuf.getComponent(adjBr, ExamplePlugin.transmitsComponentType)
+//                    val adjTransmits = cmdBuf.getComponent(adjBr, GridPlugin.transmitsComponentType)
 //                    if (adjTransmits?.transmits?.contains("Signal") == true) {
 //                        signalResetStarts.add(adj)
 //                    }
@@ -589,14 +589,14 @@
 //        for (visitedPos in allVisited.toList()) {
 //            val bi = ChunkUtil.indexBlockInColumn(visitedPos.x and 31, visitedPos.y, visitedPos.z and 31)
 //            val br = blockComponentChunk.getEntityReference(bi) ?: continue
-//            if (cmdBuf.getComponent(br, ExamplePlugin.signalSenseComponentType) != null) {
+//            if (cmdBuf.getComponent(br, GridPlugin.signalSenseComponentType) != null) {
 //                // Case 1: Visited position IS a powered SignalSense → propagate to adjacent signal wires
-//                val pw = cmdBuf.getComponent(br, ExamplePlugin.powerableComponentType)
+//                val pw = cmdBuf.getComponent(br, GridPlugin.powerableComponentType)
 //                if (pw?.powered == true) {
 //                    for (adj in getAllAdjacent(visitedPos)) {
 //                        val adjBi = ChunkUtil.indexBlockInColumn(adj.x and 31, adj.y, adj.z and 31)
 //                        val adjBr = blockComponentChunk.getEntityReference(adjBi) ?: continue
-//                        val adjTransmits = cmdBuf.getComponent(adjBr, ExamplePlugin.transmitsComponentType)
+//                        val adjTransmits = cmdBuf.getComponent(adjBr, GridPlugin.transmitsComponentType)
 //                        if (adjTransmits?.transmits?.contains("Signal") == true) {
 //                            signalPropagationStarts.add(adj)
 //                        }
@@ -604,13 +604,13 @@
 //                }
 //            } else {
 //                // Case 2: Visited position is a signal wire → check adjacents for powered SignalSense
-//                val transmits = cmdBuf.getComponent(br, ExamplePlugin.transmitsComponentType)
+//                val transmits = cmdBuf.getComponent(br, GridPlugin.transmitsComponentType)
 //                if (transmits?.transmits?.contains("Signal") == true) {
 //                    for (adj in getAllAdjacent(visitedPos)) {
 //                        val adjBi = ChunkUtil.indexBlockInColumn(adj.x and 31, adj.y, adj.z and 31)
 //                        val adjBr = blockComponentChunk.getEntityReference(adjBi) ?: continue
-//                        if (cmdBuf.getComponent(adjBr, ExamplePlugin.signalSenseComponentType) == null) continue
-//                        val adjPw = cmdBuf.getComponent(adjBr, ExamplePlugin.powerableComponentType)
+//                        if (cmdBuf.getComponent(adjBr, GridPlugin.signalSenseComponentType) == null) continue
+//                        val adjPw = cmdBuf.getComponent(adjBr, GridPlugin.powerableComponentType)
 //                        if (adjPw?.powered == true) {
 //                            signalPropagationStarts.add(visitedPos)
 //                            break
@@ -626,15 +626,15 @@
 //        }
 //
 //        // Track visited signal and power wire positions for ElectricalNodeControlSystem
-//        val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
+//        val queue = store.getResource(GridPlugin.stateChangeQueueType)
 //        for (visitedPos in allVisited) {
 //            val blockIndex = ChunkUtil.indexBlockInColumn(visitedPos.x and 31, visitedPos.y, visitedPos.z and 31)
 //            val blockRef = blockComponentChunk.getEntityReference(blockIndex) ?: continue
-//            val transmits = cmdBuf.getComponent(blockRef, ExamplePlugin.transmitsComponentType)
+//            val transmits = cmdBuf.getComponent(blockRef, GridPlugin.transmitsComponentType)
 //            if (transmits?.transmits?.contains("Signal") ?: false) {
 //                queue.dirtySignalPositions.add(visitedPos)
 //            }
-//            if (cmdBuf.getComponent(blockRef, ExamplePlugin.signalSenseComponentType) != null) {
+//            if (cmdBuf.getComponent(blockRef, GridPlugin.signalSenseComponentType) != null) {
 //                queue.dirtySignalPositions.add(visitedPos)
 //            }
 //        }
@@ -645,14 +645,14 @@
 //            val blockIndex = ChunkUtil.indexBlockInColumn(pos.x and 31, pos.y, pos.z and 31)
 //            val blockRef = blockComponentChunk.getEntityReference(blockIndex)
 //            if (blockRef != null) {
-//                if (cmdBuf.getComponent(blockRef, ExamplePlugin.relayComponentType) != null ||
-//                    cmdBuf.getComponent(blockRef, ExamplePlugin.powerSourceComponentType) != null
+//                if (cmdBuf.getComponent(blockRef, GridPlugin.relayComponentType) != null ||
+//                    cmdBuf.getComponent(blockRef, GridPlugin.powerSourceComponentType) != null
 //                ) {
 //                    for (adj in getAllAdjacent(pos)) {
 //                        queue.dirtySignalPositions.add(adj)
 //                    }
 //                }
-//                if (cmdBuf.getComponent(blockRef, ExamplePlugin.signalSenseComponentType) != null) {
+//                if (cmdBuf.getComponent(blockRef, GridPlugin.signalSenseComponentType) != null) {
 //                    for (adj in getAllAdjacent(pos)) {
 //                        queue.dirtySignalPositions.add(adj)
 //                    }

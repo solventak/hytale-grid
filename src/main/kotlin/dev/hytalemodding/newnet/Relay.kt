@@ -4,7 +4,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec
 import com.hypixel.hytale.component.Component
 import com.hypixel.hytale.component.ComponentType
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 
 /**
  * Component for relay blocks (controlled power switches).
@@ -67,7 +67,7 @@ class Relay : Component<ChunkStore> {
     }
 
     fun getComponentType(): ComponentType<ChunkStore, Relay> {
-        return ExamplePlugin.relayComponentType
+        return GridPlugin.relayComponentType
     }
 
     override fun clone(): Component<ChunkStore> {

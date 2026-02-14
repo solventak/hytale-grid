@@ -38,7 +38,7 @@ import java.util.logging.Level
  * 
  * All components and systems are registered in setup().
  */
-class ExamplePlugin(init: JavaPluginInit) : JavaPlugin(init) {
+class GridPlugin(init: JavaPluginInit) : JavaPlugin(init) {
 
     companion object {
         // Component type references stored in companion object for global access
