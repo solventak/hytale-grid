@@ -120,9 +120,6 @@ fun <T : Component<ChunkStore>> blockIsType(
     return cmdBuf.getComponent(blockRef, type) != null
 }
 
-private var lastBfsLogTime: Long = 0
-private var lastTransportLogTime: Long = 0
-
 data class BfsResult(val sinks: List<Vector3i>, val paths: Map<Vector3i, List<Vector3i>>)
 
 fun <Transport : Component<ChunkStore>, Sink : Component<ChunkStore>> bfs(
@@ -132,12 +129,6 @@ fun <Transport : Component<ChunkStore>, Sink : Component<ChunkStore>> bfs(
     blockComponentChunk: BlockComponentChunk,
     cmdBuf: CommandBuffer<ChunkStore>
 ): BfsResult {
-    val currentTime = System.currentTimeMillis()
-    if (currentTime - lastBfsLogTime >= 5000) {
-        println("BFS running from start position: ${start.x}, ${start.y}, ${start.z}")
-        lastBfsLogTime = currentTime
-    }
-
     var queue = mutableListOf<Vector3i>()
     var visited = mutableListOf<Vector3i>()
     val sinks = mutableListOf<Vector3i>()
@@ -165,13 +156,6 @@ fun <Transport : Component<ChunkStore>, Sink : Component<ChunkStore>> bfs(
         }
 
         val isTransport = blockIsType(current, on, blockComponentChunk, cmdBuf)
-        if (isTransport) {
-            val now = System.currentTimeMillis()
-            if (now - lastTransportLogTime >= 5000) {
-                println("Found connected transport at: ${current.x}, ${current.y}, ${current.z}")
-                lastTransportLogTime = now
-            }
-        }
 
         // Expand from start (source) or from transports
         if (current == start || isTransport) {
