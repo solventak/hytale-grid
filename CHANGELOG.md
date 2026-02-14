@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _(Versions will be listed here after first release)_
 
-### [0.1.0] - TBD (First Public Release)
+### [0.1.0] - 2026-02-14 (First Public Release)
 
 **Added:**
 - 4-state logic system (LOW, HIGH, WEAK, UNKNOWN)
