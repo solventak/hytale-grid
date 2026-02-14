@@ -29,7 +29,10 @@ Based on RELEASE-MANAGEMENT.md - use this for each release.
 - [x] **README.md** - Complete with installation, features, API docs
 - [x] **CHANGELOG.md** - Version history tracking
 - [x] **LICENSE** - MIT license
-- [ ] **Update version in `build.gradle.kts`** - Match release tag
+- [x] **INSTALLATION.md** - Setup guide complete
+- [x] **KNOWN_ISSUES.md** - Transparent bug documentation
+- [x] **BUILD_INFO_v0.1.0.md** - Build metadata documented
+- [ ] **Update version in `build.gradle.kts`** - Match release tag (currently 0.1.1, needs to be 0.1.0)
 - [ ] **Review CLAUDE.md** - Ensure API docs are current
 - [ ] **Remove debug logging** - Check for verbose logs in production
 
@@ -63,31 +66,33 @@ Based on RELEASE-MANAGEMENT.md - use this for each release.
 
 ## Repository
 
-- [ ] **Decide GitHub username** - Update README URLs
-- [ ] **Make repo public** - When AK approves
-- [ ] **Create git tag** - `v0.1.0` with release notes
-- [ ] **Push tag to GitHub** - `git push origin v0.1.0`
+- [x] **Decide GitHub username** - solventak/hytale-grid
+- [ ] **Make repo public** - Awaiting AK approval
+- [x] **Create git tag** - `v0.1.0` created (in draft release)
+- [ ] **Push tag to GitHub** - Will be finalized on release publication
 
 ---
 
 ## GitHub Release
 
-- [ ] **Create release on GitHub**
+- [x] **Create release on GitHub** (Draft complete, awaiting publication)
   - Tag: `v0.1.0`
-  - Title: "Grid v0.1.0 - Initial Alpha Release"
-  - Description: Copy from CHANGELOG, add screenshots
-  - Attach: `Grid-v0.1.0.jar` from `build/libs/`
+  - Title: "Grid v0.1.0 - First Public Alpha 🎉"
+  - Description: RELEASE_NOTES_v0.1.0.md attached
+  - Attach: `Grid-v0.1.0.jar` (85 MB) uploaded and verified
   - Check "Pre-release" box (for alpha/beta)
-- [ ] **Verify download link works**
+- [ ] **Publish release** (Awaiting AK approval)
+- [ ] **Verify download link works** (After publication)
 
 ---
 
 ## Launch Posts
 
-- [ ] **Reddit r/Hytale post** - Review draft in LAUNCH-POSTS-DRAFT.md
-- [ ] **Reddit r/HytaleMods post** (if exists) - Technical version
-- [ ] **Discord announcement** - Hytale modding channels
+- [x] **Reddit r/Hytale post draft** - ANNOUNCEMENT_REDDIT.md ready for review
+- [x] **Discord announcement draft** - ANNOUNCEMENT_DISCORD.md ready for review
 - [ ] **AK approves all posts** - REQUIRED before posting
+- [ ] **Post to Reddit** (After approval)
+- [ ] **Post to Discord** (After approval)
 
 ---
 
