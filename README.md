@@ -2,7 +2,7 @@
 
 **Grid** is a foundation mod for Hytale that implements a robust 4-state digital logic system. Unlike traditional binary logic, Grid uses four states (LOW, HIGH, WEAK, UNKNOWN) with multi-driver resolution, enabling complex power networks and circuitry.
 
-> ⚠️ **Early Development**: Grid is actively developed against Hytale's current API. Expect breaking changes before 1.0.
+> ⚠️ **Alpha Release (v0.1.0)**: Grid is in active development. Expect breaking changes and bugs. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for current limitations.
 
 ---
 
@@ -77,8 +77,8 @@ cd hytale-grid
 ```
 
 **Requirements:**
-- Java 17+
-- Kotlin 1.9+
+- Java 25+ (built with JDK 25)
+- Kotlin 2.3+
 - Gradle 8.0+
 
 ---
