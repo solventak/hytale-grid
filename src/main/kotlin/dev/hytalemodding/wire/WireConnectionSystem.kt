@@ -32,7 +32,6 @@ fun isConnectableAt(world: World, pos: Vector3i, fromFace: Int, sourceChannel: I
     // Check if it's an InputPort (always connectable)
     val inputPort = getComponentForGlobalXyz(world, pos, ExamplePlugin.inputPortComponentType)
     if (inputPort != null) {
-        println("  [Connection] $pos: InputPort (always connectable)")
         return true
     }
     
@@ -47,12 +46,10 @@ fun isConnectableAt(world: World, pos: Vector3i, fromFace: Int, sourceChannel: I
     val neighborWire = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerWireComponentType)
     if (neighborWire != null) {
         val channelMatch = neighborWire.channel == sourceChannel
-        println("  [Connection] $pos: Wire ch=${neighborWire.channel}, source ch=$sourceChannel, match=$channelMatch")
         return channelMatch
     }
     
     // Non-wire components are channel-agnostic
-    println("  [Connection] $pos: PowerConnectable (non-wire), connectable=true")
     return true
 }
 
