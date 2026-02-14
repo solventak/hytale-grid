@@ -28,3 +28,21 @@ Thumbs.db
 
 # Resources dir (if generated)
 resources/
+
+# Local
+deploy.sh
+
+# Generated hi-res icons (64px versions in ItemsGenerated are the ones we ship)
+mod-assets/Common/Icons/Generated/
+
+# Old release artifacts
+*.zip
+Grid-v*/
+ANNOUNCEMENT_*.md
+BUILD_INFO_*.md
+RELEASE_NOTES_*.md
+RELEASE_READY.md
+RELEASE_SUMMARY.md
+INSTALLATION.md
+KNOWN_ISSUES.md
+.release-notes-*.md

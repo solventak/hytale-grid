@@ -1,17 +1,5 @@
 {
-  "Icon": "Icons/ItemsGenerated/relay_on.png",
-  "IconProperties": {
-    "Scale": 0.58823,
-    "Rotation": [
-      22.5,
-      45,
-      22.5
-    ],
-    "Translation": [
-      0,
-      -13.5
-    ]
-  },
+  "Icon": "Icons/ItemsGenerated/relay.png",
   "Categories": [
     "Furniture.Furniture"
   ],
@@ -80,12 +68,32 @@
     "BlockSoundSetId": "Stone"
   },
   "ResourceTypes": [
-    { "Id": "Rock" },
-    { "Id": "Rock_Stone" }
+    {
+      "Id": "Rock"
+    },
+    {
+      "Id": "Rock_Stone"
+    }
   ],
   "Tags": {
-    "Type": ["Redstone"],
-    "Family": ["Source"]
+    "Type": [
+      "Redstone"
+    ],
+    "Family": [
+      "Source"
+    ]
   },
-  "ItemSoundSetId": "ISS_Blocks_Stone"
+  "ItemSoundSetId": "ISS_Blocks_Stone",
+  "IconProperties": {
+    "Scale": 0.58823,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  }
 }
