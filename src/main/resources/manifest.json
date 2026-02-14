@@ -5,7 +5,7 @@
   "Description": "4-State Digital Logic Foundation Mod",
   "Authors": [{"Name": "Alex Kennedy"}],
   "Website": "https://github.com/solventak/hytale-grid",
-  "ServerVersion": "0.1.0+",
+  "ServerVersion": "*",
   "Main": "dev.hytalemodding.GridPlugin",
   "Dependencies": {},
   "OptionalDependencies": {},
