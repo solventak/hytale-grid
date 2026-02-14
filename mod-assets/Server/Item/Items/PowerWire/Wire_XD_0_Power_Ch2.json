@@ -1,17 +1,5 @@
 {
-  "Icon": "Icons/ItemsGenerated/wire.png",
-  "IconProperties": {
-    "Scale": 0.58823,
-    "Rotation": [
-      22.5,
-      45,
-      22.5
-    ],
-    "Translation": [
-      0,
-      -13.5
-    ]
-  },
+  "Icon": "Icons/ItemsGenerated/Wire_XD_0_Ch2.png",
   "Categories": [
     "Furniture.Furniture"
   ],
@@ -83,5 +71,17 @@
       "Wire_XD_0_Power_Ch2"
     ]
   },
-  "ItemSoundSetId": "ISS_Blocks_Stone"
+  "ItemSoundSetId": "ISS_Blocks_Stone",
+  "IconProperties": {
+    "Scale": 0.58823,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      0,
+      -13.5
+    ]
+  }
 }
