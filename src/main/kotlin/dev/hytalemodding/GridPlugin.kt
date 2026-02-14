@@ -56,48 +56,43 @@ class GridPlugin(init: JavaPluginInit) : JavaPlugin(init) {
     }
 
     override fun setup() {
-        logger.at(Level.INFO).log("[GridPlugin] setup() called - beginning initialization")
+        logger.at(Level.INFO).log("[Grid] setup() called - beginning initialization")
 
-//        this.reactiveChunkComponentType = this.chunkStoreRegistry.registerComponent(ReactiveChunk::class.java, "ReactiveChunk", ReactiveChunk.CODEC)
-//        lampComponentType = this.chunkStoreRegistry.registerComponent(Lamp::class.java, "Lamp", Lamp.CODEC)
-//        logger.at(Level.INFO).log("[GridPlugin] ReactiveChunk component registered")
-
-//        this.chunkStoreRegistry.registerSystem(ReactiveBlockInteractSystem(this.reactiveChunkComponentType))
         powerConnectableComponentType = this.chunkStoreRegistry.registerComponent(PowerConnectable::class.java, "PowerConnectable", PowerConnectable.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] PowerConnectable registered")
+        logger.at(Level.INFO).log("[Grid] PowerConnectable registered")
         powerNetIdsComponentType = this.chunkStoreRegistry.registerComponent(PowerNetIds::class.java, "PowerNetIds", PowerNetIds.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] PowerNetIds registered")
+        logger.at(Level.INFO).log("[Grid] PowerNetIds registered")
         powerSourceComponentType = this.chunkStoreRegistry.registerComponent(PowerSource::class.java, "PowerSource", PowerSource.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] PowerSource registered")
+        logger.at(Level.INFO).log("[Grid] PowerSource registered")
         powerWireComponentType = this.chunkStoreRegistry.registerComponent(PowerWire::class.java, "PowerWire", PowerWire.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] PowerWire registered")
+        logger.at(Level.INFO).log("[Grid] PowerWire registered")
         lampComponentType = this.chunkStoreRegistry.registerComponent(Lamp::class.java, "Lamp", Lamp.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] Lamp registered")
+        logger.at(Level.INFO).log("[Grid] Lamp registered")
         inputPortComponentType = this.chunkStoreRegistry.registerComponent(InputPort::class.java, "InputPort", InputPort.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] InputPort registered")
+        logger.at(Level.INFO).log("[Grid] InputPort registered")
         relayComponentType = this.chunkStoreRegistry.registerComponent(Relay::class.java, "Relay", Relay.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] Relay registered")
+        logger.at(Level.INFO).log("[Grid] Relay registered")
         visualStateComponentType = this.chunkStoreRegistry.registerComponent(VisualState::class.java, "VisualState", VisualState.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] VisualState registered")
+        logger.at(Level.INFO).log("[Grid] VisualState registered")
         mux2PartComponentType = this.chunkStoreRegistry.registerComponent(Mux2Part::class.java, "Mux2Part", Mux2Part.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] Mux2Part registered")
+        logger.at(Level.INFO).log("[Grid] Mux2Part registered")
         leverComponentType = this.chunkStoreRegistry.registerComponent(Lever::class.java, "Lever", Lever.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] Lever registered")
+        logger.at(Level.INFO).log("[Grid] Lever registered")
 
         stateChangeQueueType = this.chunkStoreRegistry.registerResource(StateChangeEventQueue::class.java, "StateChangeEventQueue",
             StateChangeEventQueue.CODEC)
-        logger.at(Level.INFO).log("[GridPlugin] StateChangeEventQueue resource registered")
+        logger.at(Level.INFO).log("[Grid] StateChangeEventQueue resource registered")
 
         // Register event systems for block place/break
         this.chunkStoreRegistry.registerSystem(PowerBlockAddedSystem())
         logger.at(Level.INFO).log("[Grid] PowerBlockAddedSystem registered")
 
         this.entityStoreRegistry.registerSystem(PowerBlockBreakEvent())
-        logger.at(Level.INFO).log("[GridPlugin] PowerBlockBreakEvent registered")
+        logger.at(Level.INFO).log("[Grid] PowerBlockBreakEvent registered")
         
         // Register lever interaction system
         this.entityStoreRegistry.registerSystem(LeverInteractionSystem())
-        logger.at(Level.INFO).log("[GridPlugin] LeverInteractionSystem registered")
+        logger.at(Level.INFO).log("[Grid] LeverInteractionSystem registered")
 
         // Register topology system
         this.chunkStoreRegistry.registerSystem(TopologySystem())
