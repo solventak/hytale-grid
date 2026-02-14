@@ -2,7 +2,7 @@ package dev.hytalemodding.newnet
 
 import com.hypixel.hytale.math.vector.Vector3i
 
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 
 /**
  * Handles MUX multiblock pairing, validation, and self-destruction logic.
@@ -39,7 +39,7 @@ import dev.hytalemodding.ExamplePlugin
 fun tryPairMux(pos: Vector3i, mux: Mux2Part, worldAccess: WorldAccess): Boolean {
     for (face in 0..5) {
         val (npos, nface) = neighborOfFace(pos, face)
-        val neighborMux = worldAccess.getComponent(npos, ExamplePlugin.mux2PartComponentType)
+        val neighborMux = worldAccess.getComponent(npos, GridPlugin.mux2PartComponentType)
             ?: continue
 
         // Special case: if neighbor is already paired TO THIS POSITION, sync up with it
@@ -92,7 +92,7 @@ fun shouldDestroyIncompleteMux(pos: Vector3i, worldAccess: WorldAccess): Boolean
     for (face in 0..5) {
         val (npos, _) = neighborOfFace(pos, face)
         // If neighbor is a MUX part, only allow unpaired ones (potential future pair)
-        val neighborMux = worldAccess.getComponent(npos, ExamplePlugin.mux2PartComponentType)
+        val neighborMux = worldAccess.getComponent(npos, GridPlugin.mux2PartComponentType)
         if (neighborMux != null) {
             if (neighborMux.isComplete) {
                 return true
@@ -100,11 +100,11 @@ fun shouldDestroyIncompleteMux(pos: Vector3i, worldAccess: WorldAccess): Boolean
             continue // Unpaired MUX neighbor is fine
         }
         // Check if neighbor is a PowerConnectable (wire, relay, lamp, source, etc.)
-        if (worldAccess.getComponent(npos, ExamplePlugin.powerConnectableComponentType) != null) {
+        if (worldAccess.getComponent(npos, GridPlugin.powerConnectableComponentType) != null) {
             return true
         }
         // Check if neighbor is an InputPort
-        if (worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType) != null) {
+        if (worldAccess.getComponent(npos, GridPlugin.inputPortComponentType) != null) {
             return true
         }
     }
@@ -121,11 +121,11 @@ fun shouldDestroyIncompleteMux(pos: Vector3i, worldAccess: WorldAccess): Boolean
  * @param world The game world
  */
 fun handleMuxDestroyed(destroyedPos: Vector3i, worldAccess: WorldAccess) {
-    val mux = worldAccess.getComponent(destroyedPos, ExamplePlugin.mux2PartComponentType)
+    val mux = worldAccess.getComponent(destroyedPos, GridPlugin.mux2PartComponentType)
         ?: return
 
     val pairedPos = mux.pairedPos ?: return
-    val pairedMux = worldAccess.getComponent(pairedPos, ExamplePlugin.mux2PartComponentType)
+    val pairedMux = worldAccess.getComponent(pairedPos, GridPlugin.mux2PartComponentType)
 
     if (pairedMux != null) {
         pairedMux.pairedPos = null

@@ -6,7 +6,7 @@
   "Authors": [],
   "Website": "https://github.com/solventak/hytale-grid",
   "ServerVersion": "*",
-  "Main": "dev.hytalemodding.ExamplePlugin",
+  "Main": "dev.hytalemodding.GridPlugin",
   "Dependencies": {},
   "OptionalDependencies": {},
   "LoadBefore": {},

@@ -4,7 +4,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec
 import com.hypixel.hytale.component.Component
 import com.hypixel.hytale.component.ComponentType
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 import dev.hytalemodding.newnet.shared.State4
 
 /**
@@ -49,7 +49,7 @@ class PowerSource : Component<ChunkStore> {
     }
 
     fun getComponentType(): ComponentType<ChunkStore, PowerSource> {
-        return ExamplePlugin.powerSourceComponentType
+        return GridPlugin.powerSourceComponentType
     }
 
     override fun clone(): Component<ChunkStore> {

@@ -8,8 +8,8 @@ import com.hypixel.hytale.math.vector.Vector3i
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockComponentChunk
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
 
-//import dev.hytalemodding.ExamplePlugin.Companion.sinkComponentType
-//import dev.hytalemodding.ExamplePlugin.Companion.transportComponentType
+//import dev.hytalemodding.GridPlugin.Companion.sinkComponentType
+//import dev.hytalemodding.GridPlugin.Companion.transportComponentType
 
 //class Source : Component<ChunkStore> {
 //    var power: Int = 8
@@ -20,7 +20,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
 //    }
 //
 //    fun getComponentType(): ComponentType<ChunkStore, Source> {
-//        return ExamplePlugin.sourceComponentType
+//        return GridPlugin.sourceComponentType
 //    }
 //
 //    override fun clone(): Component<ChunkStore> {
@@ -41,7 +41,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
 //        val info = cmdBuf.getComponent(ref, BlockModule.BlockStateInfo.getComponentType())
 //            ?: return
 //
-//        cmdBuf.getComponent(ref, ExamplePlugin.sourceComponentType) ?: return
+//        cmdBuf.getComponent(ref, GridPlugin.sourceComponentType) ?: return
 //
 //        val x = ChunkUtil.xFromBlockInColumn(info.index)
 //        val y = ChunkUtil.yFromBlockInColumn(info.index)

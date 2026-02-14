@@ -4,7 +4,7 @@ import com.hypixel.hytale.codec.builder.BuilderCodec
 import com.hypixel.hytale.component.Component
 import com.hypixel.hytale.component.ComponentType
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 import dev.hytalemodding.newnet.shared.FaceMask
 
 /**
@@ -38,7 +38,7 @@ class PowerConnectable : Component<ChunkStore> {
     }
 
     fun getComponentType(): ComponentType<ChunkStore, PowerConnectable> {
-        return ExamplePlugin.powerConnectableComponentType
+        return GridPlugin.powerConnectableComponentType
     }
 
     override fun clone(): Component<ChunkStore> {

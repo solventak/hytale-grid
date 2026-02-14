@@ -8,7 +8,7 @@ import com.hypixel.hytale.component.system.EntityEventSystem
 import com.hypixel.hytale.server.core.entity.entities.Player
 import com.hypixel.hytale.server.core.event.events.ecs.UseBlockEvent
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 import dev.hytalemodding.newnet.shared.State4
 
 /**
@@ -42,8 +42,8 @@ class LeverInteractionSystem : EntityEventSystem<EntityStore, UseBlockEvent.Post
         val worldAccess: WorldAccess = HytaleWorldAccess(world)
 
         // Check if this block has a Lever component
-        val lever = worldAccess.getComponent(pos, ExamplePlugin.leverComponentType) ?: return
-        val powerSource = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: return
+        val lever = worldAccess.getComponent(pos, GridPlugin.leverComponentType) ?: return
+        val powerSource = worldAccess.getComponent(pos, GridPlugin.powerSourceComponentType) ?: return
 
         // Toggle the lever state
         lever.isOn = !lever.isOn
@@ -54,7 +54,7 @@ class LeverInteractionSystem : EntityEventSystem<EntityStore, UseBlockEvent.Post
         powerSource.lastDriveState = powerSource.driveState
 
         // Queue topology change event to re-evaluate network
-        val queue = world.chunkStore.store.getResource(ExamplePlugin.stateChangeQueueType)
+        val queue = world.chunkStore.store.getResource(GridPlugin.stateChangeQueueType)
         queue.changes.add(StateChangeEvent(pos, StateChangeKind.PLACED))
         
         // Mark visual state dirty for VisualStateSystem to update appearance

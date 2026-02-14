@@ -9,7 +9,7 @@ import com.hypixel.hytale.component.system.tick.TickingSystem
 import com.hypixel.hytale.math.vector.Vector3i
 import com.hypixel.hytale.server.core.universe.world.World
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 import dev.hytalemodding.newnet.shared.State4
 
 /**
@@ -168,7 +168,7 @@ fun expandThroughConnected(seeds: Set<Vector3i>, worldAccess: WorldAccess): Set<
     // BFS through PowerConnectable blocks
     while (queue.isNotEmpty()) {
         val pos = queue.removeFirst()
-        val conn = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) ?: continue
+        val conn = worldAccess.getComponent(pos, GridPlugin.powerConnectableComponentType) ?: continue
 
         for (face in 0..5) {
             if (conn.facesMask and (1 shl face) == 0) continue
@@ -176,7 +176,7 @@ fun expandThroughConnected(seeds: Set<Vector3i>, worldAccess: WorldAccess): Set<
             if (npos in visited) continue
 
             // Check if neighbor has a connectable face pointing back
-            val nconn = worldAccess.getComponent(npos, ExamplePlugin.powerConnectableComponentType)
+            val nconn = worldAccess.getComponent(npos, GridPlugin.powerConnectableComponentType)
             if (nconn != null && nconn.facesMask and (1 shl nface) != 0) {
                 visited.add(npos)
                 queue.add(npos)
@@ -184,7 +184,7 @@ fun expandThroughConnected(seeds: Set<Vector3i>, worldAccess: WorldAccess): Set<
             }
 
             // Also follow through InputPorts (they're not PowerConnectable but bridge connectivity)
-            val ip = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+            val ip = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
             if (ip != null) {
                 visited.add(npos)
                 // Add the driver-side block too
@@ -235,7 +235,7 @@ fun expand(seeds: Set<Vector3i>, hops: Int = 1): Set<Vector3i> {
 fun expandForInputPortDrivers(seedBlocks: Set<Vector3i>, worldAccess: WorldAccess): Set<Vector3i> {
     val expanded = seedBlocks.toMutableSet()
     for (pos in seedBlocks) {
-        val inputPort = worldAccess.getComponent(pos, ExamplePlugin.inputPortComponentType) ?: continue
+        val inputPort = worldAccess.getComponent(pos, GridPlugin.inputPortComponentType) ?: continue
         val (driverPos, _) = neighborOfFace(pos, inputPort.driverSideFace)
         expanded.add(driverPos)
     }
@@ -260,7 +260,7 @@ fun expandForAdjacentInputPorts(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAc
         for (face in 0..5) {
             val (npos, _) = neighborOfFace(pos, face)
             if (npos in expanded) continue
-            val inputPort = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType) ?: continue
+            val inputPort = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType) ?: continue
             expanded.add(npos)
             val (driverPos, _) = neighborOfFace(npos, inputPort.driverSideFace)
             expanded.add(driverPos)
@@ -294,7 +294,7 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, worldAccess: WorldAccess, queu
     // Step 1: Collect all nets that touch any seed block
     val netsToInvalidate = mutableSetOf<Int>()
     for (pos in seedBlocks) {
-        val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+        val ids = worldAccess.getComponent(pos, GridPlugin.powerNetIdsComponentType) ?: continue
         // Check all 6 faces of this block
         for (face in 0..5) {
             val netId = ids.get(face)
@@ -313,7 +313,7 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, worldAccess: WorldAccess, queu
         val clearedFaces = mutableListOf<String>()
         for (entry in members) {
             allDirtyPositions.add(entry.pos)
-            val ids = worldAccess.getComponent(entry.pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+            val ids = worldAccess.getComponent(entry.pos, GridPlugin.powerNetIdsComponentType) ?: continue
             val oldId = ids.get(entry.face)
             ids.set(entry.face, UNASSIGNED)  // Reset to unassigned
             if (oldId != UNASSIGNED) {
@@ -350,11 +350,11 @@ fun clearNetsFromSeeds(seedBlocks: Set<Vector3i>, worldAccess: WorldAccess, queu
  */
 fun rebuildPowerTopology(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
-        val conn = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) ?: continue
-        val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+        val conn = worldAccess.getComponent(pos, GridPlugin.powerConnectableComponentType) ?: continue
+        val ids = worldAccess.getComponent(pos, GridPlugin.powerNetIdsComponentType) ?: continue
 
         // For MUX blocks, only seed faces in the conduction mask (not all facesMask faces)
-        val muxComp = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType)
+        val muxComp = worldAccess.getComponent(pos, GridPlugin.mux2PartComponentType)
         val seedMask = if (muxComp != null && muxComp.isComplete && !muxComp.isDisconnected) {
             getMuxConductionMask(pos, muxComp, worldAccess)
         } else {
@@ -398,12 +398,12 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
     while (bfsQueue.isNotEmpty()) {
         val (pos, face) = bfsQueue.removeFirst()
 
-        val conn = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) ?: continue
-        val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+        val conn = worldAccess.getComponent(pos, GridPlugin.powerConnectableComponentType) ?: continue
+        val ids = worldAccess.getComponent(pos, GridPlugin.powerNetIdsComponentType) ?: continue
 
         // Skip if face isn't connectable or already assigned
         // For MUX blocks, use conduction mask instead of static facesMask
-        val muxCheck = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType)
+        val muxCheck = worldAccess.getComponent(pos, GridPlugin.mux2PartComponentType)
         val effectiveMask = if (muxCheck != null && muxCheck.isComplete && !muxCheck.isDisconnected) {
             getMuxConductionMask(pos, muxCheck, worldAccess)
         } else {
@@ -417,7 +417,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         queue.addNetMember(netId, pos, face)
 
         // Internal connectivity rule 1: PowerWire bridges all connectable faces
-        val wire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType)
+        val wire = worldAccess.getComponent(pos, GridPlugin.powerWireComponentType)
         if (wire != null) {
             for (face2 in 0..5) {
                 if (face2 == face) continue  // Skip self
@@ -428,7 +428,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         }
 
         // Internal connectivity rule 2: Enabled relay star-connects all conduction (non-control) faces
-        val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType)
+        val relay = worldAccess.getComponent(pos, GridPlugin.relayComponentType)
         if (relay != null && relay.enabled) {
             val controlMask = getControlFaces(pos, worldAccess)  // Bitmask of faces with InputPorts
             val faceIsControl = controlMask and (1 shl face) != 0
@@ -446,7 +446,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         }
 
         // Internal connectivity rule 3: Complete MUX conducts through selected input to output
-        val mux = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType)
+        val mux = worldAccess.getComponent(pos, GridPlugin.mux2PartComponentType)
         if (mux != null && mux.isComplete && !mux.isDisconnected) {
             val conductionMask = getMuxConductionMask(pos, mux, worldAccess)
             val faceInMask = conductionMask and (1 shl face) != 0
@@ -462,7 +462,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
                         val members = queue.netMembers[existingNet]
                         if (members != null) {
                             for ((mPos, mFace) in members.toList()) {
-                                val mIds = worldAccess.getComponent(mPos, ExamplePlugin.powerNetIdsComponentType)
+                                val mIds = worldAccess.getComponent(mPos, GridPlugin.powerNetIdsComponentType)
                                 mIds?.set(mFace, netId)
                                 queue.addNetMember(netId, mPos, mFace)
                             }
@@ -475,13 +475,13 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
 
         // External adjacency: Spread to the opposite face of the neighbor block
         val (npos, nface) = neighborOfFace(pos, face)
-        val nconn = worldAccess.getComponent(npos, ExamplePlugin.powerConnectableComponentType)
-        val nids = worldAccess.getComponent(npos, ExamplePlugin.powerNetIdsComponentType)
+        val nconn = worldAccess.getComponent(npos, GridPlugin.powerConnectableComponentType)
+        val nids = worldAccess.getComponent(npos, GridPlugin.powerNetIdsComponentType)
 
         if (nconn != null && nids != null && nconn.facesMask and (1 shl nface) != 0 && nids.get(nface) == UNASSIGNED) {
             // Wire channel isolation: wires only connect to same-channel wires
             // Non-wire components (sources, relays, MUX, decoders, lamps) are channel-agnostic
-            val neighborWire = worldAccess.getComponent(npos, ExamplePlugin.powerWireComponentType)
+            val neighborWire = worldAccess.getComponent(npos, GridPlugin.powerWireComponentType)
             val bothWires = wire != null && neighborWire != null
             if (bothWires && wire.channel != neighborWire.channel) {
                 // Different wire channels don't connect
@@ -493,12 +493,12 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         // MUX InputPort pass-through (both directions):
         // Direction 1: MUX face -> InputPort -> far wire
         if (muxCheck != null && muxCheck.isComplete && !muxCheck.isDisconnected) {
-            val neighborIp = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+            val neighborIp = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
             if (neighborIp != null && neighborIp.driverSideFace == nface) {
                 val farFace = OPPOSITE_FACE[nface]
                 val (farPos, farNface) = neighborOfFace(npos, farFace)
-                val farConn = worldAccess.getComponent(farPos, ExamplePlugin.powerConnectableComponentType)
-                val farIds = worldAccess.getComponent(farPos, ExamplePlugin.powerNetIdsComponentType)
+                val farConn = worldAccess.getComponent(farPos, GridPlugin.powerConnectableComponentType)
+                val farIds = worldAccess.getComponent(farPos, GridPlugin.powerNetIdsComponentType)
                 if (farConn != null && farIds != null && farConn.facesMask and (1 shl farNface) != 0 && farIds.get(farNface) == UNASSIGNED) {
                     bfsQueue.add(Pair(farPos, farNface))
                 }
@@ -508,16 +508,16 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
         // Direction 2: wire face -> InputPort -> MUX input face
         // Check if the neighbor is an InputPort whose far side touches a conducting MUX face
         if (nconn == null) {
-            val neighborIp = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+            val neighborIp = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
             if (neighborIp != null && neighborIp.driverSideFace != nface) {
                 // We're on the output side of the InputPort. Check if the driver side touches a MUX.
                 val driverFace = neighborIp.driverSideFace
                 val (muxPos, muxNface) = neighborOfFace(npos, driverFace)
-                val muxPart = worldAccess.getComponent(muxPos, ExamplePlugin.mux2PartComponentType)
+                val muxPart = worldAccess.getComponent(muxPos, GridPlugin.mux2PartComponentType)
                 if (muxPart != null && muxPart.isComplete && !muxPart.isDisconnected) {
                     val muxMask = getMuxConductionMask(muxPos, muxPart, worldAccess)
                     if (muxMask and (1 shl muxNface) != 0) {
-                        val muxIds = worldAccess.getComponent(muxPos, ExamplePlugin.powerNetIdsComponentType)
+                        val muxIds = worldAccess.getComponent(muxPos, GridPlugin.powerNetIdsComponentType)
                         if (muxIds != null && muxIds.get(muxNface) == UNASSIGNED) {
                             bfsQueue.add(Pair(muxPos, muxNface))
                         }
@@ -542,7 +542,7 @@ fun floodFillPower(startPos: Vector3i, startFace: Int, netId: Int, worldAccess: 
 fun collectNetIds(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess): Set<Int> {
     val netIds = mutableSetOf<Int>()
     for (pos in dirtyBlocks) {
-        val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+        val ids = worldAccess.getComponent(pos, GridPlugin.powerNetIdsComponentType) ?: continue
         for (face in 0..5) {
             val id = ids.get(face)
             if (id != UNASSIGNED) {
@@ -574,7 +574,7 @@ fun collectNetIds(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess): Set<Int
  * @return The computed 4-state drive value (ZERO, ONE, HIGH_Z, or UNKNOWN_X)
  */
 fun computeInverterDrive(sourcePos: Vector3i, worldAccess: WorldAccess, queue: StateChangeEventQueue): State4 {
-    val conn = worldAccess.getComponent(sourcePos, ExamplePlugin.powerConnectableComponentType)
+    val conn = worldAccess.getComponent(sourcePos, GridPlugin.powerConnectableComponentType)
         ?: return State4.ONE
 
     val inputValues = mutableListOf<State4>()
@@ -583,7 +583,7 @@ fun computeInverterDrive(sourcePos: Vector3i, worldAccess: WorldAccess, queue: S
     for (face in 0..5) {
         if (conn.facesMask and (1 shl face) == 0) continue  // Face not connectable
         val (npos, nface) = neighborOfFace(sourcePos, face)
-        val inputPort = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+        val inputPort = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
             ?: continue  // No InputPort here
         // Verify the InputPort's driverSideFace points back at this source
         if (inputPort.driverSideFace != nface) continue
@@ -592,7 +592,7 @@ fun computeInverterDrive(sourcePos: Vector3i, worldAccess: WorldAccess, queue: S
         // InputPort itself has no PowerNetIds — it's a transparent probe.
         val outputFace = OPPOSITE_FACE[inputPort.driverSideFace]
         val (probePos, probeFace) = neighborOfFace(npos, outputFace)
-        val probeIds = worldAccess.getComponent(probePos, ExamplePlugin.powerNetIdsComponentType)
+        val probeIds = worldAccess.getComponent(probePos, GridPlugin.powerNetIdsComponentType)
         val inputNetId = probeIds?.get(probeFace) ?: UNASSIGNED
         val inputNetValue = if (inputNetId != UNASSIGNED) {
             queue.powerNetValueCache[inputNetId] ?: State4.HIGH_Z
@@ -624,10 +624,10 @@ fun computeInverterDrive(sourcePos: Vector3i, worldAccess: WorldAccess, queue: S
  */
 fun evaluateSources(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
-        val source = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: continue
+        val source = worldAccess.getComponent(pos, GridPlugin.powerSourceComponentType) ?: continue
         
         // Skip inverter evaluation for Lever blocks - they're manually controlled
-        val lever = worldAccess.getComponent(pos, ExamplePlugin.leverComponentType)
+        val lever = worldAccess.getComponent(pos, GridPlugin.leverComponentType)
         if (lever != null) {
             // Lever state was already set by LeverInteractionSystem, don't overwrite
             source.lastDriveState = source.driveState
@@ -667,9 +667,9 @@ fun resolveNets(dirtyNetIds: Set<Int>, dirtyBlocks: Set<Vector3i>, worldAccess: 
     }
 
     for (pos in dirtyBlocks) {
-        val source = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: continue
-        val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
-        val conn = worldAccess.getComponent(pos, ExamplePlugin.powerConnectableComponentType) ?: continue
+        val source = worldAccess.getComponent(pos, GridPlugin.powerSourceComponentType) ?: continue
+        val ids = worldAccess.getComponent(pos, GridPlugin.powerNetIdsComponentType) ?: continue
+        val conn = worldAccess.getComponent(pos, GridPlugin.powerConnectableComponentType) ?: continue
 
         for (face in 0..5) {
             if (conn.facesMask and (1 shl face) == 0) continue
@@ -740,7 +740,7 @@ fun destroyXNets(dirtyNetIds: Set<Int>, world: World, queue: StateChangeEventQue
  * @return true if the state changed, false if it was already the target state
  */
 fun setVisualState(pos: Vector3i, worldAccess: WorldAccess, queue: StateChangeEventQueue, newState: String): Boolean {
-    val vs = worldAccess.getComponent(pos, ExamplePlugin.visualStateComponentType) ?: return false
+    val vs = worldAccess.getComponent(pos, GridPlugin.visualStateComponentType) ?: return false
     if (vs.state != newState) {
         vs.state = newState
         queue.visualDirtyPositions.add(pos)
@@ -761,8 +761,8 @@ fun setVisualState(pos: Vector3i, worldAccess: WorldAccess, queue: StateChangeEv
  */
 fun updateLamps(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
-        val lamp = worldAccess.getComponent(pos, ExamplePlugin.lampComponentType) ?: continue
-        val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+        val lamp = worldAccess.getComponent(pos, GridPlugin.lampComponentType) ?: continue
+        val ids = worldAccess.getComponent(pos, GridPlugin.powerNetIdsComponentType) ?: continue
         val oldLit = lamp.lit
         var lit = false
         var matchedFace: Int? = null
@@ -798,7 +798,7 @@ fun updateLamps(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: Sta
  */
 fun updateRelayVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
-        val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType) ?: continue
+        val relay = worldAccess.getComponent(pos, GridPlugin.relayComponentType) ?: continue
         val newState = if (relay.enabled) "On" else "default"
         if (setVisualState(pos, worldAccess, queue, newState)) {
         }
@@ -817,7 +817,7 @@ fun updateRelayVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, que
  */
 fun updateDriverVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
-        val source = worldAccess.getComponent(pos, ExamplePlugin.powerSourceComponentType) ?: continue
+        val source = worldAccess.getComponent(pos, GridPlugin.powerSourceComponentType) ?: continue
         val newState = if (source.driveState == State4.ONE) "On" else "default"
         if (setVisualState(pos, worldAccess, queue, newState)) {
         }
@@ -836,7 +836,7 @@ fun updateDriverVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, qu
  */
 fun updateLeverVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
-        val lever = worldAccess.getComponent(pos, ExamplePlugin.leverComponentType) ?: continue
+        val lever = worldAccess.getComponent(pos, GridPlugin.leverComponentType) ?: continue
         val newState = if (lever.isOn) "On" else "default"
         if (setVisualState(pos, worldAccess, queue, newState)) {
         }
@@ -855,8 +855,8 @@ fun updateLeverVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, que
  */
 fun updateWireVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
-        val wire = worldAccess.getComponent(pos, ExamplePlugin.powerWireComponentType) ?: continue
-        val ids = worldAccess.getComponent(pos, ExamplePlugin.powerNetIdsComponentType) ?: continue
+        val wire = worldAccess.getComponent(pos, GridPlugin.powerWireComponentType) ?: continue
+        val ids = worldAccess.getComponent(pos, GridPlugin.powerNetIdsComponentType) ?: continue
         var powered = false
         for (face in 0..5) {
             val netId = ids.get(face)
@@ -882,11 +882,11 @@ fun updateWireVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queu
  */
 fun updateInputPortVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue: StateChangeEventQueue) {
     for (pos in dirtyBlocks) {
-        val inputPort = worldAccess.getComponent(pos, ExamplePlugin.inputPortComponentType) ?: continue
+        val inputPort = worldAccess.getComponent(pos, GridPlugin.inputPortComponentType) ?: continue
         // Probe the net on the InputPort's output face (opposite of driver side)
         val outputFace = OPPOSITE_FACE[inputPort.driverSideFace]
         val (probePos, probeFace) = neighborOfFace(pos, outputFace)
-        val probeIds = worldAccess.getComponent(probePos, ExamplePlugin.powerNetIdsComponentType)
+        val probeIds = worldAccess.getComponent(probePos, GridPlugin.powerNetIdsComponentType)
         val netId = probeIds?.get(probeFace) ?: UNASSIGNED
         val netValue = if (netId != UNASSIGNED) {
             queue.powerNetValueCache[netId] ?: State4.HIGH_Z
@@ -916,7 +916,7 @@ fun updateMuxVisuals(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess, queue
     val processed = mutableSetOf<Vector3i>()
     for (pos in dirtyBlocks) {
         if (pos in processed) continue
-        val mux = worldAccess.getComponent(pos, ExamplePlugin.mux2PartComponentType) ?: continue
+        val mux = worldAccess.getComponent(pos, GridPlugin.mux2PartComponentType) ?: continue
         processed.add(pos)
         mux.pairedPos?.let { processed.add(it) }
 
@@ -1009,7 +1009,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
     }
 
     override fun tick(dt: Float, systemIndex: Int, store: Store<ChunkStore>) {
-        val changesQueue = store.getResource(ExamplePlugin.stateChangeQueueType)
+        val changesQueue = store.getResource(GridPlugin.stateChangeQueueType)
         if (changesQueue.changes.isEmpty()) return
 
         // Phase 1: Drain seeds
@@ -1058,7 +1058,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
             // Subsequent rounds use the relay state from evaluation, so only round 0 resets.
             if (round == 0) {
                 for (pos in dirtyBlocks) {
-                    val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType) ?: continue
+                    val relay = worldAccess.getComponent(pos, GridPlugin.relayComponentType) ?: continue
                     relay.lastEnabled = relay.enabled
                     relay.enabled = false
                 }
@@ -1123,7 +1123,7 @@ class TopologySystem : TickingSystem<ChunkStore>() {
             // Expand through MUX-adjacent InputPorts to include far-side blocks (power sources)
             val expandedToggled = expand(allToggled).toMutableSet()
             for (pos in expandedToggled.toSet()) {
-                val ip = worldAccess.getComponent(pos, ExamplePlugin.inputPortComponentType) ?: continue
+                val ip = worldAccess.getComponent(pos, GridPlugin.inputPortComponentType) ?: continue
                 // Add the block on the far side of the InputPort (opposite of driver side)
                 val farFace = OPPOSITE_FACE[ip.driverSideFace]
                 val (farPos, _) = neighborOfFace(pos, farFace)

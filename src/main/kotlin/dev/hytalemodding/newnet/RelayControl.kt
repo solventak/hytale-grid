@@ -2,7 +2,7 @@ package dev.hytalemodding.newnet
 
 import com.hypixel.hytale.math.vector.Vector3i
 
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 import dev.hytalemodding.newnet.shared.State4
 
 /**
@@ -23,7 +23,7 @@ fun getControlFaces(relayPos: Vector3i, worldAccess: WorldAccess): Int {
     var mask = 0
     for (face in 0..5) {
         val (npos, nface) = neighborOfFace(relayPos, face)
-        val inputPort = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+        val inputPort = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
             ?: continue
         // InputPort's driverSideFace should point back at the relay (== nface, the face facing the relay)
         if (inputPort.driverSideFace == nface) {
@@ -72,11 +72,11 @@ fun evaluateRelayControl(
         // Probe the block adjacent to the InputPort's output face (not the InputPort itself).
         // InputPort has no PowerNetIds — it's a pure probe that reads the neighboring block's net.
         val (npos, nface) = neighborOfFace(relayPos, face)
-        val inputPort = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+        val inputPort = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
             ?: continue
         val outputFace = OPPOSITE_FACE[inputPort.driverSideFace]
         val (probePos, probeFace) = neighborOfFace(npos, outputFace)
-        val probeIds = worldAccess.getComponent(probePos, ExamplePlugin.powerNetIdsComponentType)
+        val probeIds = worldAccess.getComponent(probePos, GridPlugin.powerNetIdsComponentType)
         val netId = probeIds?.get(probeFace) ?: UNASSIGNED
         val netValue = if (netId != UNASSIGNED) {
             queue.powerNetValueCache[netId] ?: State4.HIGH_Z
@@ -123,7 +123,7 @@ fun evaluateAllRelayControls(
 ): Boolean {
     var anyToggled = false
     for (pos in dirtyBlocks) {
-        val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType) ?: continue
+        val relay = worldAccess.getComponent(pos, GridPlugin.relayComponentType) ?: continue
         val (enabled, controlFault) = evaluateRelayControl(pos, worldAccess, queue)
         relay.lastEnabled = relay.enabled
         relay.enabled = enabled
@@ -149,7 +149,7 @@ fun evaluateAllRelayControls(
 fun collectToggledRelayPositions(dirtyBlocks: Set<Vector3i>, worldAccess: WorldAccess): MutableSet<Vector3i> {
     val toggled = mutableSetOf<Vector3i>()
     for (pos in dirtyBlocks) {
-        val relay = worldAccess.getComponent(pos, ExamplePlugin.relayComponentType) ?: continue
+        val relay = worldAccess.getComponent(pos, GridPlugin.relayComponentType) ?: continue
         if (relay.enabled != relay.lastEnabled) {
             toggled.add(pos)
         }

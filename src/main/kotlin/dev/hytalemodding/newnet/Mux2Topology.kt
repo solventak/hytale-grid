@@ -2,7 +2,7 @@ package dev.hytalemodding.newnet
 
 import com.hypixel.hytale.math.vector.Vector3i
 
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 
 /**
  * MUX topology integration — defines how MUX blocks participate in flood fill.
@@ -143,7 +143,7 @@ fun findBlockInputFace(pos: Vector3i, pairFace: Int, worldAccess: WorldAccess): 
     for (face in 0..5) {
         if (face == pairFace || face == oppPairFace) continue // skip pair axis
         val (npos, nface) = neighborOfFace(pos, face)
-        val ip = worldAccess.getComponent(npos, ExamplePlugin.inputPortComponentType)
+        val ip = worldAccess.getComponent(npos, GridPlugin.inputPortComponentType)
         if (ip != null && ip.driverSideFace == nface) return face
     }
     return -1
@@ -169,11 +169,11 @@ fun findInputFatEnd(pos: Vector3i, pairedPos: Vector3i, pairFace: Int, worldAcce
 
         // Check if either MUX block has an InputPort on this face direction
         val (npos1, nface1) = neighborOfFace(pos, face)
-        val ip1 = worldAccess.getComponent(npos1, ExamplePlugin.inputPortComponentType)
+        val ip1 = worldAccess.getComponent(npos1, GridPlugin.inputPortComponentType)
         if (ip1 != null && ip1.driverSideFace == nface1) return face
 
         val (npos2, nface2) = neighborOfFace(pairedPos, face)
-        val ip2 = worldAccess.getComponent(npos2, ExamplePlugin.inputPortComponentType)
+        val ip2 = worldAccess.getComponent(npos2, GridPlugin.inputPortComponentType)
         if (ip2 != null && ip2.driverSideFace == nface2) return face
     }
     return -1

@@ -9,7 +9,7 @@ package dev.hytalemodding
 //    }
 //
 //    fun getComponentType(): ComponentType<ChunkStore, Sink> {
-//        return ExamplePlugin.sinkComponentType
+//        return GridPlugin.sinkComponentType
 //    }
 //
 //    override fun clone(): Component<ChunkStore> {
@@ -30,7 +30,7 @@ package dev.hytalemodding
 //        val info = cmdBuf.getComponent(ref, BlockModule.BlockStateInfo.getComponentType())
 //            ?: return
 //
-//        cmdBuf.getComponent(ref, ExamplePlugin.sinkComponentType) ?: return
+//        cmdBuf.getComponent(ref, GridPlugin.sinkComponentType) ?: return
 //
 //        val x = ChunkUtil.xFromBlockInColumn(info.index)
 //        val y = ChunkUtil.yFromBlockInColumn(info.index)

@@ -2,7 +2,7 @@ package dev.hytalemodding.wire
 
 import com.hypixel.hytale.math.vector.Vector3i
 import com.hypixel.hytale.server.core.universe.world.World
-import dev.hytalemodding.ExamplePlugin
+import dev.hytalemodding.GridPlugin
 import dev.hytalemodding.newnet.*
 
 /**
@@ -30,21 +30,21 @@ import dev.hytalemodding.newnet.*
  */
 fun isConnectableAt(world: World, pos: Vector3i, fromFace: Int, sourceChannel: Int): Boolean {
     // Check if it's an InputPort (always connectable)
-    val inputPort = getComponentForGlobalXyz(world, pos, ExamplePlugin.inputPortComponentType)
+    val inputPort = getComponentForGlobalXyz(world, pos, GridPlugin.inputPortComponentType)
     if (inputPort != null) {
         println("  [Connection] $pos: InputPort (always connectable)")
         return true
     }
     
     // Check if it's a PowerConnectable with the required face enabled
-    val conn = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerConnectableComponentType) ?: return false
+    val conn = getComponentForGlobalXyz(world, pos, GridPlugin.powerConnectableComponentType) ?: return false
     val neededFace = OPPOSITE_FACE[fromFace]
     val faceConnectable = conn.facesMask and (1 shl neededFace) != 0
     
     if (!faceConnectable) return false
     
     // If neighbor is a wire, check channel match
-    val neighborWire = getComponentForGlobalXyz(world, pos, ExamplePlugin.powerWireComponentType)
+    val neighborWire = getComponentForGlobalXyz(world, pos, GridPlugin.powerWireComponentType)
     if (neighborWire != null) {
         val channelMatch = neighborWire.channel == sourceChannel
         println("  [Connection] $pos: Wire ch=${neighborWire.channel}, source ch=$sourceChannel, match=$channelMatch")

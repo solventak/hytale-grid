@@ -20,7 +20,7 @@
 //    }
 //
 //    override fun tick(dt: Float, systemIndex: Int, store: Store<ChunkStore>) {
-//        val queue = store.getResource(ExamplePlugin.stateChangeQueueType)
+//        val queue = store.getResource(GridPlugin.stateChangeQueueType)
 //
 //        if (queue.dirtySignalPositions.isEmpty()) {
 //            // Cycle is idle — clear oscillation tracking so next real event starts fresh
@@ -46,8 +46,8 @@
 //                        val blockComponentChunk = cmdBuf.getComponent(chunkRef, BlockComponentChunk.getComponentType()) ?: continue
 //                        val blockIndex = ChunkUtil.indexBlockInColumn(adj.x and 31, adj.y, adj.z and 31)
 //                        val blockRef = blockComponentChunk.getEntityReference(blockIndex) ?: continue
-//                        val isRelay = cmdBuf.getComponent(blockRef, ExamplePlugin.relayComponentType) != null
-//                        val isSource = cmdBuf.getComponent(blockRef, ExamplePlugin.powerSourceComponentType) != null
+//                        val isRelay = cmdBuf.getComponent(blockRef, GridPlugin.relayComponentType) != null
+//                        val isSource = cmdBuf.getComponent(blockRef, GridPlugin.powerSourceComponentType) != null
 //                        if (isRelay || isSource) {
 //                            signalControlledPositions.add(adj)
 //                        }
@@ -76,9 +76,9 @@
 //        val blockIndex = ChunkUtil.indexBlockInColumn(pos.x and 31, pos.y, pos.z and 31)
 //        val blockRef = blockComponentChunk.getEntityReference(blockIndex) ?: return
 //
-//        val node = cmdBuf.getComponent(blockRef, ExamplePlugin.electricalNodeComponentType) ?: return
-//        val relay = cmdBuf.getComponent(blockRef, ExamplePlugin.relayComponentType)
-//        val powerSource = cmdBuf.getComponent(blockRef, ExamplePlugin.powerSourceComponentType)
+//        val node = cmdBuf.getComponent(blockRef, GridPlugin.electricalNodeComponentType) ?: return
+//        val relay = cmdBuf.getComponent(blockRef, GridPlugin.relayComponentType)
+//        val powerSource = cmdBuf.getComponent(blockRef, GridPlugin.powerSourceComponentType)
 //
 //        // Get the SignalControlled implementation
 //        val signalControlled: SignalControlled = relay ?: powerSource ?: return
@@ -89,7 +89,7 @@
 //
 //        if (relay != null) {
 //            // Relay: toggle transmits
-//            val transmits = cmdBuf.getComponent(blockRef, ExamplePlugin.transmitsComponentType) ?: return
+//            val transmits = cmdBuf.getComponent(blockRef, GridPlugin.transmitsComponentType) ?: return
 //            val currentlyConducts = "Power" in transmits.transmits
 //            if (shouldConduct != currentlyConducts) {
 //                if (pos in queue.toggledThisCycle) {
@@ -142,14 +142,14 @@
 //            val adjBlockIndex = ChunkUtil.indexBlockInColumn(adj.x and 31, adj.y, adj.z and 31)
 //            val adjRef = blockComponentChunk.getEntityReference(adjBlockIndex) ?: continue
 //            // SignalSense emits signal when powered (but has "Power" transmits, not "Signal")
-//            if (cmdBuf.getComponent(adjRef, ExamplePlugin.signalSenseComponentType) != null) {
-//                val adjPowerable = cmdBuf.getComponent(adjRef, ExamplePlugin.powerableComponentType)
+//            if (cmdBuf.getComponent(adjRef, GridPlugin.signalSenseComponentType) != null) {
+//                val adjPowerable = cmdBuf.getComponent(adjRef, GridPlugin.powerableComponentType)
 //                if (adjPowerable?.powered == true) return true
 //                continue
 //            }
-//            val adjTransmits = cmdBuf.getComponent(adjRef, ExamplePlugin.transmitsComponentType) ?: continue
+//            val adjTransmits = cmdBuf.getComponent(adjRef, GridPlugin.transmitsComponentType) ?: continue
 //            if ("Signal" !in adjTransmits.transmits) continue
-//            val adjPowerable = cmdBuf.getComponent(adjRef, ExamplePlugin.powerableComponentType) ?: continue
+//            val adjPowerable = cmdBuf.getComponent(adjRef, GridPlugin.powerableComponentType) ?: continue
 //            if (adjPowerable.powered) return true
 //        }
 //        return false
