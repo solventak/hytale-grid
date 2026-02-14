@@ -21,6 +21,13 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
+    - name: Download Hytale Server JAR
+      run: |
+        mkdir -p libs
+        gh release download dependencies --pattern "HytaleServer.jar" --dir libs/
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
     - name: Build with Gradle
       run: ./gradlew clean build -x test
       
