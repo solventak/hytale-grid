@@ -32,7 +32,7 @@
 
 ## Installation
 
-1. **Download** the latest release from [Releases](https://github.com/YOUR_USERNAME/hytale-grid/releases)
+1. **Download** the latest release from [Releases](https://github.com/solventak/hytale-grid/releases)
 2. **Place** `Grid-vX.X.X.jar` in your Hytale `mods/` folder
 3. **Launch** Hytale server/client
 
@@ -70,7 +70,7 @@ For detailed API documentation and examples, see [CLAUDE.md](CLAUDE.md).
 ## Building from Source
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/hytale-grid.git
+git clone https://github.com/solventak/hytale-grid.git
 cd hytale-grid
 ./gradlew build
 # Output: build/libs/Grid-vX.X.X.jar
@@ -126,8 +126,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/YOUR_USERNAME/hytale-grid/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/YOUR_USERNAME/hytale-grid/discussions)
+- **Issues:** [GitHub Issues](https://github.com/solventak/hytale-grid/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/solventak/hytale-grid/discussions)
 - **Discord:** [Hytale Modding Discord](https://discord.gg/hytale) (community channels)
 
 ---
