@@ -1,5 +1,5 @@
 {
-  "Icon": "Icons/ItemsGenerated/Example_Block.png",
+  "Icon": "Icons/ItemsGenerated/Grid_Source.png",
   "IconProperties": {
     "Scale": 0.58823,
     "Rotation": [
@@ -24,7 +24,7 @@
     ],
     "Output": [
       {
-        "ItemId": "Example_Block"
+        "ItemId": "Grid_Source"
       }
     ],
     "BenchRequirement": [
