@@ -269,7 +269,7 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
             }
         }
 
-        // If this block has an InputPort component, validate and configure its driverSideFace
+        // If this block has an InputPort component, configure its driverSideFace
         if (inputPort != null) {
             var foundDriverFace: Int? = null
             for (face in 0..5) {
@@ -282,11 +282,15 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                     break
                 }
             }
-            if (foundDriverFace == null) {
-                world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
-                return
-            }
-            inputPort.driverSideFace = foundDriverFace
+            
+            // Note: We've removed the validation/destruction logic that was here.
+            // During world load, blocks may load in any order. If an InputPort loads before
+            // its neighbor MUX completes pairing, the validation would fail and delete the InputPort.
+            // 
+            // Instead, we set a default driver face (0/DOWN) if no valid driver is found.
+            // The InputPort will be inert until a valid driver is placed next to it.
+            // Players can break and re-place invalid InputPorts if needed.
+            inputPort.driverSideFace = foundDriverFace ?: 0
         }
 
         // If this block is a Mux2Part, handle pairing logic
