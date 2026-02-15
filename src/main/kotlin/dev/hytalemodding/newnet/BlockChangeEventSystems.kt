@@ -282,11 +282,19 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                     break
                 }
             }
-            if (foundDriverFace == null) {
+            
+            // Only validate and destroy blocks during SPAWN (player placement)
+            // During LOAD (world load), blocks may load in any order causing false positives.
+            // If an InputPort loads before its neighbor MUX completes pairing, validation
+            // would fail even though the setup is actually valid.
+            if (foundDriverFace == null && reason == AddReason.SPAWN) {
+                // Player tried to place InputPort without a valid driver → destroy it
                 world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
                 return
             }
-            inputPort.driverSideFace = foundDriverFace
+            
+            // Set driver face (or default to 0 if loading from world with race condition)
+            inputPort.driverSideFace = foundDriverFace ?: 0
         }
 
         // If this block is a Mux2Part, handle pairing logic
