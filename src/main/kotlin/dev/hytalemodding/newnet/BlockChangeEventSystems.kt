@@ -269,7 +269,7 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
             }
         }
 
-        // If this block has an InputPort component, configure its driverSideFace
+        // If this block has an InputPort component, validate and configure its driverSideFace
         if (inputPort != null) {
             var foundDriverFace: Int? = null
             for (face in 0..5) {
@@ -283,13 +283,17 @@ class PowerBlockAddedSystem : RefSystem<ChunkStore>() {
                 }
             }
             
-            // Note: We've removed the validation/destruction logic that was here.
-            // During world load, blocks may load in any order. If an InputPort loads before
-            // its neighbor MUX completes pairing, the validation would fail and delete the InputPort.
-            // 
-            // Instead, we set a default driver face (0/DOWN) if no valid driver is found.
-            // The InputPort will be inert until a valid driver is placed next to it.
-            // Players can break and re-place invalid InputPorts if needed.
+            // Only validate and destroy blocks during SPAWN (player placement)
+            // During LOAD (world load), blocks may load in any order causing false positives.
+            // If an InputPort loads before its neighbor MUX completes pairing, validation
+            // would fail even though the setup is actually valid.
+            if (foundDriverFace == null && reason == AddReason.SPAWN) {
+                // Player tried to place InputPort without a valid driver → destroy it
+                world.execute { world.setBlock(pos.x, pos.y, pos.z, "Empty") }
+                return
+            }
+            
+            // Set driver face (or default to 0 if loading from world with race condition)
             inputPort.driverSideFace = foundDriverFace ?: 0
         }
 
